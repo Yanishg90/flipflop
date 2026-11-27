@@ -1,7 +1,7 @@
 {
   "name": "Flip&Flop",
   "short_name": "Flip&Flop",
-  "description": "Probabilités, cotes, ranges GTO, tapis ou fold, ICM, entraînement et suivi de sessions.",
+  "description": "Ton coach de poker GTO : probabilités, cotes, ranges GTO, tapis ou fold, ICM, entraînement et suivi de sessions.",
   "lang": "fr",
   "start_url": "./",
   "scope": "./",

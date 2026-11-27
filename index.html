@@ -379,19 +379,19 @@ details ul{padding-left:20px;margin:6px 0}
 
 <!-- ================= MON JEU (historiques importés) ================= -->
 <section id="t-jeu" class="tab">
- <p class="intro">Importe tes historiques de mains Winamax (ou PokerStars) : Flip&amp;Flop analyse toutes tes mains d'un coup, calcule tes statistiques et trouve tes erreurs. Tout reste sur ton appareil.</p>
  <div class="card">
-  <h2>📥 Importer mes mains</h2>
-  <p class="help">Sur ton ordinateur, Winamax range tes mains dans le dossier :<br><code>C:\Users\(ton nom)\AppData\Roaming\winamax\documents\accounts\(ton pseudo)\history</code><br>Choisis un ou plusieurs fichiers <code>.txt</code>. Seul le Texas Hold'em No Limit est analysé (l'Omaha est ignoré). Tu peux réimporter les mêmes fichiers : les doublons sont évités.</p>
+  <h2>📥 Charger mes mains Winamax</h2>
   <div id="hhFolderBox" style="display:none">
-   <h3>🔄 Import automatique (ordinateur)</h3>
-   <p class="help">Choisis ton dossier Winamax une seule fois. Ensuite, après chaque session, un clic sur « Mettre à jour mes mains » ajoute toutes les nouvelles mains.<br>
-   Astuce : dans la fenêtre qui s'ouvre, colle cette adresse dans la barre du haut puis valide : <code>%APPDATA%\winamax\documents\accounts</code>, puis ouvre le dossier de ton pseudo et choisis <b>history</b>.</p>
    <div class="row"><button class="btn" id="hhSyncBtn">🔄 Mettre à jour mes mains</button><button class="btn sec small" id="hhFolderBtn">📂 Choisir mon dossier Winamax</button></div>
    <p class="help" id="hhFolderName"></p>
-   <h3>Ou fichier par fichier</h3>
   </div>
-  <div class="row"><button class="btn" id="hhPick">Choisir mes fichiers</button><input type="file" id="hhFiles" accept=".txt,text/plain" multiple hidden><button class="btn sec small" id="hhClear">Effacer les mains importées</button></div>
+  <div class="row"><button class="btn" id="hhPick">📄 Choisir mes fichiers</button><input type="file" id="hhFiles" accept=".txt,text/plain" multiple hidden></div>
+  <details><summary>Où sont mes mains ?</summary>
+   <p class="help">Sur ton ordinateur, Winamax les range dans :<br><code>C:\Users\(ton nom)\AppData\Roaming\winamax\documents\accounts\(ton pseudo)\history</code><br>
+   Astuce : dans la fenêtre qui s'ouvre, colle <code>%APPDATA%\winamax\documents\accounts</code> dans la barre du haut, valide, ouvre le dossier de ton pseudo puis <b>history</b>.<br>
+   Avec « Choisir mon dossier Winamax » (une seule fois), le bouton « Mettre à jour » ajoute ensuite les nouvelles mains d'un clic. Seul le Texas Hold'em est analysé. Les mains déjà chargées ne sont pas comptées deux fois. Tout reste sur ton appareil.</p>
+   <div class="row"><button class="btn sec small" id="hhClear">Effacer les mains chargées</button></div>
+  </details>
   <details><summary>Ou coller le texte d'une main</summary>
    <textarea id="hhPaste" rows="6" style="width:100%;background:#0d1712;color:var(--txt);border:1px solid var(--line);border-radius:7px;padding:8px;font:13px monospace;margin-top:8px" placeholder="Colle ici une ou plusieurs mains copiées depuis Winamax"></textarea>
    <div class="row"><button class="btn sec small" id="hhPasteBtn">Analyser ce texte</button></div>
@@ -2160,7 +2160,17 @@ function renderHH(){
   const res=cashL.length?cashL.reduce((a,h)=>a+h.net/h.bb,0)/cashL.length*100:null;
   const chips=tourL.reduce((a,h)=>a+h.net,0);
   const errTotal=Object.values(S.errs).reduce((a,x)=>a+x.length,0);
-  let h=hhFilterBar(F)+`
+  const okPct=S.graded?1-errTotal/S.graded:null, gain=tourL.length&&!cashL.length?chips:res, isT=tourL.length&&!cashL.length;
+  const losses=hhSorted(list,"loss").filter(x=>x.net<0).slice(0,3);
+  const bilan=`<div class="coach" style="max-width:none">
+    <div class="big ${gain===null?"wait":gain>=0?"raise":"fold"}"><b>${gain===null?S.n+" mains":(gain>=0?"+":"−")+(isT?Math.abs(Math.round(gain)).toLocaleString("fr-FR")+" jetons":fr(Math.abs(gain),1)+" bb/100")}</b>
+      <span>${gain===null?"analysées":gain>=0?`Tu gagnes sur ces ${S.n} mains 👍`:`Tu perds sur ces ${S.n} mains : voici quoi corriger.`}</span></div>
+    ${okPct!==null?`<div class="st"><h3>🃏 Avant le flop : ${pc(okPct,0)} de bonnes décisions</h3><p class="why" style="margin:0">${okPct>=.9?"Très bien : tu suis bien les tableaux.":okPct>=.75?"Correct, mais il reste des erreurs à corriger.":"Beaucoup d'erreurs : utilise le coach « J'ai une main » pour t'entraîner."} (${S.graded} décisions vérifiées)</p></div>`:""}
+    <div class="st"><h3>🎯 À corriger en priorité</h3>${leaks.length?leaks.slice(0,3).map(([sev,t,d],i)=>`<div class="rvi ${sev>=3?"rv-bad":sev===2?"rv-ok":""}"><b>${i+1}. ${t}</b><br>${d}</div>`).join(""):'<p>Aucune grosse erreur trouvée pour l\'instant 👏</p>'}
+      ${S.n<200?`<p class="why">Avec ${S.n} mains, c'est encore approximatif : c'est fiable à partir de 500 mains.</p>`:""}</div>
+    ${losses.length?`<div class="st"><h3>😬 Tes plus grosses pertes : à revoir</h3>${hhRows(losses)}<p class="why">Touche « Revoir » pour voir ce qu'il fallait faire.</p></div>`:""}
+  </div>`;
+  let h=bilan+`<details class="card" id="hhMore" style="margin-top:12px" ${store.get("pgto_hhmore",false)?"open":""}><summary>📊 Tout le détail : statistiques, graphiques, toutes mes mains</summary>`+hhFilterBar(F)+`
     <div class="grid2" style="margin-top:16px">
       <div class="card"><h2>📈 Évolution de mes gains</h2>${hhGraph(list)}</div>
       <div class="card"><h2>🏆 Mes tournois et sessions</h2>${hhEvents(list)}</div>
@@ -2190,8 +2200,9 @@ function renderHH(){
       ${hhRows(hhSorted(list,store.get("pgto_hhsort","loss")).slice(0,30))}
     </div>
     <div class="card"><h2>👥 Adversaires rencontrés</h2>${hhOppTable(list)}</div>
-  </div></div>`;
+  </div></div></details>`;
   box.innerHTML=h;
+  $("hhMore").ontoggle=e=>store.set("pgto_hhmore",e.target.open);
   $("hhSort").value=store.get("pgto_hhsort","loss");
   renderOppList();
 }
@@ -3655,7 +3666,7 @@ function init(){
   const GROUPS={
     jouer:[["coach","🃏 Que faire avec ma main ?"],["qc","🎯 Mes chances de gagner"],["eq","🎯 Chances (détaillé)"],["pre","📊 Tableaux préflop"],["odds","🧮 Cotes"],["solv","🧠 Solveur"]],
     tournoi:[["tf","⚡ Tournoi : tapis ou pas ?"],["pf","⚡ Tapis ou fold (tableaux)"],["icm","🏆 ICM"]],
-    analyser:[["jeu","📈 Mon jeu"],["rev","🔍 Revoir une main"],["vil","👥 Joueurs"],["ses","📒 Sessions"]],
+    analyser:[["jeu","📈 Revoir mes parties"],["rev","🔍 Revoir une main"],["vil","👥 Joueurs"],["ses","📒 Sessions"]],
     apprendre:[["tr","🎓 Cours et exercices"]]
   };
   const groupOf=t=>Object.keys(GROUPS).find(g=>GROUPS[g].some(x=>x[0]===t))||"jouer";

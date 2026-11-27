@@ -121,6 +121,7 @@ svg text{fill:var(--mute);font-size:11px}
 #glossBox h3{margin:0 0 8px;color:var(--acc2);font-size:18px}
 #lexique dt{font-weight:700;margin-top:10px;color:var(--acc2)}
 #lexique dd{margin:2px 0 0 0;font-size:14px}
+.warn{background:#3a1416;border:1px solid var(--bad);border-radius:10px;padding:8px 12px;font-size:13.5px;margin:0 0 12px}
 .banner{background:#3a3010;border:1px solid var(--acc2);border-radius:10px;padding:10px 12px;margin-bottom:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .banner span{flex:1 1 220px}
 .tour{text-align:center}
@@ -155,6 +156,7 @@ details ul{padding-left:20px;margin:6px 0}
 <main>
 <!-- ================= CHANCES ================= -->
 <section id="t-eq" class="tab">
+ <p class="warn">⚠️ <b>Outil d'étude</b> : utilise-le avant ou après tes parties, <b>jamais pendant une partie en ligne</b>. Winamax interdit les calculateurs (chances, ICM, ranges) pendant le jeu : tu risquerais la fermeture de ton compte.</p>
  <p class="intro">Tes chances de gagner la main, contre une ou plusieurs mains adverses, à n'importe quel moment du coup.</p>
  <div class="grid2">
   <div class="col">
@@ -271,10 +273,19 @@ details ul{padding-left:20px;margin:6px 0}
 
 <!-- ================= MON JEU (historiques importés) ================= -->
 <section id="t-jeu" class="tab">
+ <p class="warn">⚠️ Importe tes mains <b>après</b> tes sessions. Ferme Flip&amp;Flop pendant que tu joues sur Winamax : son règlement interdit les calculateurs pendant le jeu.</p>
  <p class="intro">Importe tes historiques de mains Winamax (ou PokerStars) : Flip&amp;Flop analyse toutes tes mains d'un coup, calcule tes statistiques et trouve tes erreurs. Tout reste sur ton appareil.</p>
  <div class="card">
   <h2>📥 Importer mes mains</h2>
   <p class="help">Sur ton ordinateur, Winamax range tes mains dans le dossier :<br><code>C:\Users\(ton nom)\AppData\Roaming\winamax\documents\accounts\(ton pseudo)\history</code><br>Choisis un ou plusieurs fichiers <code>.txt</code>. Seul le Texas Hold'em No Limit est analysé (l'Omaha est ignoré). Tu peux réimporter les mêmes fichiers : les doublons sont évités.</p>
+  <div id="hhFolderBox" style="display:none">
+   <h3>🔄 Import automatique (ordinateur)</h3>
+   <p class="help">Choisis ton dossier Winamax une seule fois. Ensuite, après chaque session, un clic sur « Mettre à jour mes mains » ajoute toutes les nouvelles mains.<br>
+   Astuce : dans la fenêtre qui s'ouvre, colle cette adresse dans la barre du haut puis valide : <code>%APPDATA%\winamax\documents\accounts</code>, puis ouvre le dossier de ton pseudo et choisis <b>history</b>.</p>
+   <div class="row"><button class="btn" id="hhSyncBtn">🔄 Mettre à jour mes mains</button><button class="btn sec small" id="hhFolderBtn">📂 Choisir mon dossier Winamax</button></div>
+   <p class="help" id="hhFolderName"></p>
+   <h3>Ou fichier par fichier</h3>
+  </div>
   <div class="row"><button class="btn" id="hhPick">Choisir mes fichiers</button><input type="file" id="hhFiles" accept=".txt,text/plain" multiple hidden><button class="btn sec small" id="hhClear">Effacer les mains importées</button></div>
   <details><summary>Ou coller le texte d'une main</summary>
    <textarea id="hhPaste" rows="6" style="width:100%;background:#0d1712;color:var(--txt);border:1px solid var(--line);border-radius:7px;padding:8px;font:13px monospace;margin-top:8px" placeholder="Colle ici une ou plusieurs mains copiées depuis Winamax"></textarea>
@@ -397,6 +408,7 @@ details ul{padding-left:20px;margin:6px 0}
 
 <!-- ================= TAPIS OU FOLD ================= -->
 <section id="t-pf" class="tab">
+ <p class="warn">⚠️ <b>Outil d'étude</b> : utilise-le avant ou après tes parties, <b>jamais pendant une partie en ligne</b>. Winamax interdit les calculateurs (chances, ICM, ranges) pendant le jeu : tu risquerais la fermeture de ton compte.</p>
  <p class="intro">Fin de tournoi, petit tapis : quand faire tapis, et quand payer un tapis. <button class="q" data-q="nash" aria-label="Explication">?</button> Depuis la petite blinde, c'est le <b>vrai équilibre GTO</b> (équilibre de Nash). Depuis les autres places, c'est une très bonne approximation.</p>
  <div class="card">
   <div class="f"><label>Ta place (personne n'a joué avant toi)</label><select id="pfSeat"></select></div>
@@ -420,6 +432,7 @@ details ul{padding-left:20px;margin:6px 0}
 
 <!-- ================= ICM ================= -->
 <section id="t-icm" class="tab">
+ <p class="warn">⚠️ <b>Outil d'étude</b> : utilise-le avant ou après tes parties, <b>jamais pendant une partie en ligne</b>. Winamax interdit les calculateurs (chances, ICM, ranges) pendant le jeu : tu risquerais la fermeture de ton compte.</p>
  <p class="intro">En tournoi, tes jetons ne valent pas leur poids en euros. L'ICM calcule ce que vaut vraiment ton tapis en argent, selon les prix à gagner.</p>
  <div class="grid2">
   <div class="card">
@@ -1817,6 +1830,50 @@ function hhToRv(h){
   }
   rv=r; saveRv(); renderRv(); goTab("rev"); window.scrollTo(0,0); rvAnalyze();
 }
+/* ---- import automatique depuis un dossier (Chrome / Edge sur ordinateur) ---- */
+const hhFolderOK=typeof window!=="undefined"&&"showDirectoryPicker" in window;
+function hhIdb(){ return new Promise((ok,ko)=>{ const r=indexedDB.open("flipflop",1); r.onupgradeneeded=()=>r.result.createObjectStore("kv"); r.onsuccess=()=>ok(r.result); r.onerror=()=>ko(r.error); }); }
+async function hhIdbGet(k){ const db=await hhIdb(); return new Promise((ok,ko)=>{ const q=db.transaction("kv").objectStore("kv").get(k); q.onsuccess=()=>ok(q.result); q.onerror=()=>ko(q.error); }); }
+async function hhIdbSet(k,v){ const db=await hhIdb(); return new Promise((ok,ko)=>{ const t=db.transaction("kv","readwrite"); t.objectStore("kv").put(v,k); t.oncomplete=()=>ok(); t.onerror=()=>ko(t.error); }); }
+function renderHHFolder(){
+  if(!hhFolderOK) return;
+  $("hhFolderBox").style.display="";
+  const n=store.get("pgto_hhdirname","");
+  $("hhFolderName").textContent=n?`Dossier choisi : ${n}`:"Aucun dossier choisi pour l'instant.";
+}
+async function hhPickFolder(){
+  try{
+    const d=await window.showDirectoryPicker({id:"winamax",mode:"read"});
+    await hhIdbSet("hhDir",d); store.set("pgto_hhdirname",d.name); renderHHFolder(); await hhSync();
+  }catch(e){
+    if(e&&e.name==="AbortError") return;
+    $("hhMsg").innerHTML='<p class="err">Ce dossier ne peut pas être ouvert par le navigateur. Utilise plutôt « Choisir mes fichiers » juste en dessous.</p>';
+  }
+}
+async function hhListFiles(dir,depth=0,out=[]){
+  for await (const [name,h] of dir.entries()){
+    if(h.kind==="file"&&/\.txt$/i.test(name)&&/holdem/i.test(name)&&!/summary/i.test(name)) out.push(h);
+    else if(h.kind==="directory"&&depth<4) await hhListFiles(h,depth+1,out);
+  }
+  return out;
+}
+async function hhSync(){
+  let d=null; try{ d=await hhIdbGet("hhDir"); }catch(e){}
+  if(!d){ $("hhMsg").innerHTML='<p class="help">Choisis d\'abord ton dossier Winamax avec le bouton « 📂 ».</p>'; return; }
+  try{
+    let perm=await d.queryPermission({mode:"read"});
+    if(perm!=="granted") perm=await d.requestPermission({mode:"read"});
+    if(perm!=="granted"){ $("hhMsg").innerHTML='<p class="err">Tu n\'as pas autorisé la lecture du dossier. Clique à nouveau et choisis « Autoriser ».</p>'; return; }
+    $("hhMsg").innerHTML='<p class="help">Recherche des nouvelles mains…</p>';
+    const seen=store.get("pgto_hhfiles",{}), files=await hhListFiles(d), texts=[];
+    for(const fh of files){ const f=await fh.getFile(), sig=f.size+"-"+f.lastModified; if(seen[fh.name]===sig) continue; texts.push(await f.text()); seen[fh.name]=sig; }
+    store.set("pgto_hhfiles",seen);
+    if(!files.length){ $("hhMsg").innerHTML='<p class="err">Aucun fichier de Texas Hold\'em trouvé dans ce dossier. Vérifie que tu as choisi le dossier « history » de ton pseudo.</p>'; return; }
+    if(!texts.length){ $("hhMsg").innerHTML=`<p class="help">✅ Rien de nouveau : tes ${files.length} fichier${files.length>1?"s":""} de Texas Hold'em sont déjà importés.</p>`; return; }
+    await hhImport(texts);
+  }catch(e){ $("hhMsg").innerHTML='<p class="err">Impossible de lire le dossier. Choisis-le à nouveau avec le bouton « 📂 ».</p>'; }
+}
+
 async function hhImport(texts){
   let added=0, dup=0, autre=0, err=0; const ids=new Set(hhHands.map(h=>h.id));
   for(const t of texts){ const r=hhParse(t); autre+=r.skip.autre; err+=r.skip.erreur;
@@ -2289,7 +2346,9 @@ function init(){
     const texts=[]; for(const f of fs) texts.push(await f.text()); e.target.value=""; hhImport(texts); };
   $("hhPasteBtn").onclick=()=>{ const t=$("hhPaste").value; if(t.trim()){ hhImport([t]); $("hhPaste").value=""; } };
   $("hhClear").onclick=()=>{ if(!hhHands.length||!confirm(`Effacer les ${hhHands.length} mains importées ? (Tu pourras les réimporter depuis tes fichiers.)`)) return;
-    hhHands=[]; hhCache.clear(); store.set("pgto_hh",hhHands); $("hhMsg").innerHTML=""; renderHH(); };
+    hhHands=[]; hhCache.clear(); store.set("pgto_hh",hhHands); store.set("pgto_hhfiles",{}); $("hhMsg").innerHTML=""; renderHH(); };
+  renderHHFolder();
+  if(hhFolderOK){ $("hhFolderBtn").onclick=hhPickFolder; $("hhSyncBtn").onclick=hhSync; }
   document.addEventListener("change",e=>{
     if(e.target.id==="hhFilter"){ store.set("pgto_hhfilter",e.target.value); renderHH(); }
     if(e.target.id==="hhSort"){ store.set("pgto_hhsort",e.target.value); renderHH(); }
@@ -2501,6 +2560,7 @@ function init(){
   // visite guidée (au premier lancement, ou depuis Apprendre)
   const TOUR=[
     ["👋","Bienvenue sur Flip&Flop","Ton assistant pour progresser au poker. L'appli a 4 parties : ce sont les 4 boutons en bas de l'écran."],
+    ["⚠️","Pour étudier, pas pendant le jeu","Flip&Flop sert à préparer et à revoir tes parties. N'ouvre jamais l'appli pendant une partie en ligne : Winamax interdit les calculateurs pendant le jeu, et tu risquerais la fermeture de ton compte."],
     ["🎯","Jouer","Tes chances de gagner une main, les mains à jouer avant le flop selon ta place, et si payer une mise est rentable."],
     ["🏆","Tournoi","Quand faire tapis avec peu de jetons, et ce que valent vraiment tes jetons en euros (ICM)."],
     ["🔍","Analyser","Après la partie : revois tes mains pour trouver tes erreurs, note les joueurs, et suis tes gains."],

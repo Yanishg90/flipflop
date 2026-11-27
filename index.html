@@ -274,6 +274,10 @@ details ul{padding-left:20px;margin:6px 0}
     <div class="help" id="rvRinfo"></div>
     <p class="help" style="margin-top:12px">S'il a montré ses cartes à la fin (facultatif) :</p>
     <div class="slots" id="rvOpp"></div>
+    <h3 style="margin-top:14px">Autres adversaires dans le coup</h3>
+    <p class="help">Si plusieurs joueurs ont vu le flop avec toi, ajoute les autres ici : les chances seront calculées contre tout le monde à la fois.</p>
+    <div id="rvExtra"></div>
+    <div class="row"><button class="btn sec small" id="rvAddX">+ Ajouter un adversaire</button></div>
    </div>
    <div class="card">
     <h2>3. Ce qui s'est passé</h2>
@@ -1356,7 +1360,8 @@ function styleFreq(id){
 const STREETS=["Flop","Turn","River"];
 const newRv=()=>({table:tableSize,pos:"BTN",oppPos:"BB",villain:"",hero:[-1,-1],board:[-1,-1,-1,-1,-1],opp:[-1,-1],
   range:FACING[0].raise+", "+FACING[0].call,preSit:"open",preAct:"raise",
-  streets:[0,1,2].map(()=>({pot:"",obet:"",act:"check",amt:""}))});
+  streets:[0,1,2].map(()=>({pot:"",obet:"",act:"check",amt:""})),extra:[]});
+const RV_CALLER="22+, A2s+, K8s+, Q9s+, J9s+, T8s+, 97s+, 86s+, 76s, 65s, A9o+, KTo+, QTo+, JTo";
 let rv=store.get("pgto_rv",null);
 if(!rv||!Array.isArray(rv.streets)||!Array.isArray(rv.board)) rv=newRv();
 let rvList=store.get("pgto_rvlist",[]); if(!Array.isArray(rvList)) rvList=[];
@@ -1385,7 +1390,37 @@ function renderRv(){
   $("rvPreSit").value=rv.preSit; $("rvPreAct").value=rv.preAct;
   $("rvVillain").innerHTML=`<option value="">— personne —</option>`+villains.map(v=>`<option value="${v.id}" ${String(v.id)===String(rv.villain)?"selected":""}>${esc(v.name)}</option>`).join("");
   $("rvVStyle").style.display=rv.villain?"":"none";
+  renderRvExtra();
   renderRvStreets();
+}
+function renderRvExtra(){
+  if(!Array.isArray(rv.extra)) rv.extra=[];
+  $("rvExtra").innerHTML=rv.extra.map((x,i)=>`<div class="card" style="margin:8px 0;padding:10px">
+    <b>Adversaire ${i+2}</b>
+    <div class="f"><label>Ce qu'il pouvait avoir</label><input type="text" data-rvx="${i}:range" value="${esc(x.range)}"></div>
+    <div class="help" id="rvxInfo${i}">${rangeInfo(x.range)}</div>
+    <div class="f"><label>Il est resté dans le coup jusqu'à…</label><select data-rvx="${i}:until">${[["0","il se couche au flop"],["1","il se couche à la turn"],["2","la river (ou l'abattage)"]].map(([v,t])=>`<option value="${v}" ${String(x.until)===v?"selected":""}>${t}</option>`).join("")}</select></div>
+    <button class="btn sec small" data-rvxdel="${i}">Retirer</button></div>`).join("");
+  $("rvAddX").style.display=rv.extra.length>=3?"none":"";
+}
+// chances contre plusieurs adversaires à la fois (chacun avec sa range pondérée)
+function multiEquity(hero,bk,specs,N=6000){
+  const dead=new Set([...hero,...bk]);
+  const L=specs.map(sp=>{ const list=[],cum=[]; let tot=0; sp.combos.forEach((cb,i)=>{ const w=sp.w[i]; if(w>0&&!dead.has(cb[0])&&!dead.has(cb[1])){ tot+=w; list.push(cb); cum.push(tot); } }); return {list,cum,tot}; });
+  if(L.some(x=>!x.list.length)) return null;
+  const pick=x=>{ const r=rnd()*x.tot; let lo=0,hi=x.cum.length-1; while(lo<hi){ const m=(lo+hi)>>1; if(x.cum[m]<r) lo=m+1; else hi=m; } return x.list[lo]; };
+  let w=0,done=0;
+  for(let it=0;it<N*4&&done<N;it++){
+    const used=new Set(dead), hands=[]; let ok=true;
+    for(const x of L){ const cb=pick(x); if(used.has(cb[0])||used.has(cb[1])){ ok=false; break; } used.add(cb[0]); used.add(cb[1]); hands.push(cb); }
+    if(!ok) continue;
+    const b=bk.slice(); while(b.length<5){ const c=(rnd()*52)|0; if(!used.has(c)){ used.add(c); b.push(c); } }
+    const me=evalArr([...hero,...b]); let best=0,ties=0;
+    for(const cb of hands){ const o=evalArr([cb[0],cb[1],...b]); if(o>best) best=o; }
+    if(me>best) w+=1; else if(me===best){ for(const cb of hands) if(evalArr([cb[0],cb[1],...b])===me) ties++; w+=1/(ties+1); }
+    done++;
+  }
+  return done?w/done:null;
 }
 function renderRvStreets(){
   const n=rvBoardCount(); let h="";
@@ -1421,6 +1456,9 @@ function rvAnalyze(){
   const oppKnown=rv.opp.every(c=>c>=0);
   const combos=[]; R.forEach(cl=>combosOf(cl).forEach(cb=>combos.push(cb)));
   const rangeSpec={t:3,combos,w:new Float64Array(combos.length).fill(1)}, realSpec=oppKnown?{t:1,c:rv.opp}:null;
+  const extras=(rv.extra||[]).map(x=>{ const r=parseRange(x.range||"").set, cs=[]; (r.size?r:parseRange("tout").set).forEach(cl=>combosOf(cl).forEach(cb=>cs.push(cb))); return {combos:cs,w:new Float64Array(cs.length).fill(1),until:+x.until||0}; });
+  const activeX=s=>extras.filter(x=>x.until>=s);
+  const eqAll=(bk,s)=>{ const ax=s<0?extras:activeX(s); return ax.length?multiEquity(H,bk,[rangeSpec,...ax]):quickEquity(H,bk,rangeSpec); };
   const sf=styleFreq(rv.villain);
   const narrow=(bk,f)=>{ const cl=makeClassifier(bk); combos.forEach((cb,i)=>{ if(rangeSpec.w[i]>0) rangeSpec.w[i]*=f[cl(cb)]; }); };
   const kept=bk=>{ let s=0,t=0; combos.forEach((cb,i)=>{ if(!H.includes(cb[0])&&!H.includes(cb[1])&&!bk.includes(cb[0])&&!bk.includes(cb[1])){ t++; s+=rangeSpec.w[i]; } }); return t?s/t:0; };
@@ -1428,7 +1466,7 @@ function rvAnalyze(){
   const add=(v,title,text)=>items.push({v,title,text});
   const nameAct={raise:"relancer",call:"payer",fold:"jeter",check:"checker",shove:"faire tapis"};
   // --- avant le flop
-  const eqPre=quickEquity(H,[],rangeSpec), sc=rvScenario(), act=rv.preAct; let pre;
+  const eqPre=eqAll([],-1), sc=rvScenario(), act=rv.preAct; let pre;
   if(!sc){
     pre=act==="fold"?["bad","Tu pouvais voir le flop gratuitement","En grosse blinde, si personne n'a relancé, checker ne coûte rien : ne jette jamais ta main ici."]
        :["good","OK",act==="raise"?"Relancer depuis la grosse blinde quand les autres ont juste payé, c'est bien avec une bonne main.":"Voir le flop gratuitement : parfait."];
@@ -1443,7 +1481,7 @@ function rvAnalyze(){
     else if(a==="fold") pre=["bad","Tu as jeté une bonne main",`${cls} dans la situation ${where} : le GTO dit ${recTxt}.`];
     else pre=["ok",`Acceptable, mais le GTO préfère ${recTxt}`,`${cls} dans la situation ${where} : tu as choisi de ${nameAct[a]}.`];
   }
-  add(pre[0],"Avant le flop — "+pre[1],pre[2]+(eqPre!==null?`<br>Tes chances contre sa range : <b>${pc(eqPre)}</b>.`:""));
+  add(pre[0],"Avant le flop — "+pre[1],pre[2]+(eqPre!==null?`<br>Tes chances contre ${extras.length?`les ${extras.length+1} adversaires`:"sa range"} : <b>${pc(eqPre)}</b>.`:""));
   // --- ta range à toi (pour le solveur de river) : d'après ta situation avant le flop, puis resserrée par tes actions
   let hSet=null;
   if(sc&&sc.s){ const S=sc.s; hSet=act==="call"||act==="check"?(S.open?new Set([...S.raise,...S.call]):S.call):act==="shove"?new Set([...S.shove,...S.raise]):new Set([...S.raise,...S.shove]); }
@@ -1458,13 +1496,17 @@ function rvAnalyze(){
     // il a payé ta mise au tour d'avant : il garde surtout ses mains correctes
     if(s>0&&["bet","raise"].includes(rv.streets[s-1].act)) narrow(rv.board.slice(0,2+s),{value:1,medium:0.75,draw:0.8,air:0.1});
     if(s>0) heroNarrow(rv.board.slice(0,2+s),rv.streets[s-1].act);
+    // les autres adversaires encore là : ils ont suivi, ils gardent surtout leurs mains correctes et leurs tirages
+    if(s>0) for(const x of activeX(s)){ const cl=makeClassifier(rv.board.slice(0,2+s)); const f={value:1,medium:0.8,draw:0.85,air:0.15}; x.combos.forEach((cb,i)=>{ if(x.w[i]>0) x.w[i]*=f[cl(cb)]; }); }
+    const nx=activeX(s).length;
     const wBefore=s===2?Float64Array.from(rangeSpec.w):null; // sa range juste avant sa décision de river
     // il mise à ce tour : il a plus souvent du fort (et quelques bluffs selon son style)
     if(ob>0) narrow(bk,{value:sf.vF,medium:0.15,draw:Math.min(1,sf.bF*1.4),air:sf.bF*0.8});
-    const eq=quickEquity(H,bk,rangeSpec), eqR=realSpec?quickEquity(H,bk,realSpec):null;
+    const eq=eqAll(bk,s), eqR=realSpec&&!nx?quickEquity(H,bk,realSpec):null;
+    const eqD=nx?Math.min(1,eq*(nx+2)/2):eq; // force de ta main ramenée à un face-à-face (pour juger miser ou checker)
     if(eq===null){ add("info",STREETS[s],"Aucune main de sa range n'est possible avec ces cartes : vérifie la range."); break; }
     const sc2=evalArr([...H,...bk]), k=kept(bk);
-    const eqTxt=`Ta main : <b>${CAT[sc2>>20]}</b>${drawLabel(draws([...H,...bk]),sc2>>20,bk.length)}. Tes chances contre sa range : <b>${pc(eq)}</b>${k<0.98?` <span class="help">(range resserrée : il garde environ ${pc(k,0)} de ses mains de départ)</span>`:""}${eqR!==null?` (contre ses vraies cartes : ${pc(eqR)})`:""}.`;
+    const eqTxt=`Ta main : <b>${CAT[sc2>>20]}</b>${drawLabel(draws([...H,...bk]),sc2>>20,bk.length)}. Tes chances contre ${nx?`les ${nx+1} adversaires`:"sa range"} : <b>${pc(eq)}</b>${nx?` <span class="help">(part normale à ${nx+2} joueurs : ${pc(1/(nx+2),0)})</span>`:""}${k<0.98?` <span class="help">(range resserrée : il garde environ ${pc(k,0)} de ses mains de départ)</span>`:""}${eqR!==null?` (contre ses vraies cartes : ${pc(eqR)})`:""}.`;
     if(st.act==="fold") stopped=true;
     if(pot===null||pot<=0){ add("info",STREETS[s],eqTxt+"<br>Indique le pot de ce tour pour avoir un verdict."); continue; }
     const more=s<2; let v="info",t="",x="";
@@ -1480,26 +1522,27 @@ function rvAnalyze(){
         else if(eq<need+0.05){v="ok";t="Fold discutable";x=needTxt+" C'était presque équilibré.";}
         else {v="bad";t="Tu as jeté une main rentable";x=needTxt+" Il fallait payer.";}
       } else if(st.act==="raise"){
-        if(eq>=0.6){v="good";t="Bonne relance pour la valeur";x="Tu étais souvent devant : relancer fait payer les mains moins bonnes.";}
-        else if(eq<0.35){v="ok";t="Relance en bluff";x=more?"Avec un tirage, c'est un semi-bluff : ça peut marcher, mais c'est risqué.":"À la river, ce bluff devait faire coucher l'adversaire très souvent.";}
+        if(eqD>=0.6){v="good";t="Bonne relance pour la valeur";x="Tu étais souvent devant : relancer fait payer les mains moins bonnes.";}
+        else if(eqD<0.35){v="ok";t="Relance en bluff";x=more?"Avec un tirage, c'est un semi-bluff : ça peut marcher, mais c'est risqué.":"À la river, ce bluff devait faire coucher l'adversaire très souvent.";}
         else {v="ok";t="Relance risquée";x="Avec une main moyenne, payer est souvent plus simple : les mains meilleures ne se couchent pas.";}
         x=needTxt+" "+x;
       } else {t="Action impossible";x="Il avait misé : tu pouvais seulement payer, relancer ou te coucher.";}
     } else {
       if(st.act==="check"){
-        if(eq>=0.65){v="ok";t="Tu pouvais miser";x="Tu étais souvent devant : miser fait payer les mains moins bonnes (« mise de valeur »).";}
+        if(eqD>=0.65){v="ok";t="Tu pouvais miser";x="Tu étais souvent devant : miser fait payer les mains moins bonnes (« mise de valeur »).";}
         else {v="good";t="Check raisonnable";x="Avec cette main, passer évite de perdre trop.";}
       } else if(st.act==="bet"){
         const sz=amt>0?` (${fr(amt/pot*100,0)} % du pot)`:"";
         if(amt<=0){t="Mise";x="Indique le montant de ta mise pour avoir un verdict.";}
-        else if(eq>=0.55){v="good";t="Bonne mise de valeur"+sz;x="Tu étais devant la plupart du temps : miser rapporte.";}
-        else if(eq<=0.3){v="ok";t="Bluff"+sz;x=`Pour être rentable, ce bluff devait faire coucher l'adversaire au moins ${pc(amt/(pot+amt))} du temps.`+(more?" Avec un tirage, tu pouvais aussi t'améliorer (semi-bluff).":"");}
+        else if(eqD>=0.55){v="good";t="Bonne mise de valeur"+sz;x="Tu étais devant la plupart du temps : miser rapporte.";}
+        else if(eqD<=0.3){v="ok";t="Bluff"+sz;x=`${nx?"Bluffer contre plusieurs joueurs marche rarement : il faut que TOUS se couchent. ":""}Pour être rentable, ce bluff devait faire coucher ${nx?"tout le monde":"l'adversaire"} au moins ${pc(amt/(pot+amt))} du temps.`+(more?" Avec un tirage, tu pouvais aussi t'améliorer (semi-bluff).":"");}
         else {v="ok";t="Mise avec une main moyenne"+sz;x="Avec une main moyenne, le check est souvent meilleur : les mains moins bonnes se couchent et les meilleures paient.";}
       } else if(st.act==="fold"){v="bad";t="Tu pouvais checker gratuitement";x="Personne n'avait misé : passer ne coûtait rien.";}
       else {t="Action impossible";x="Personne n'avait misé : tu pouvais checker ou miser.";}
     }
     // à la river : avis du vrai solveur GTO, avec ta main exacte
-    if(s===2&&["check","bet","call","fold"].includes(st.act)){
+    if(s===2&&nx) x+=`<br><span class="help">À plusieurs adversaires, le solveur GTO de river ne s'applique pas (il calcule seulement les face-à-face) : verdict d'après tes chances.</span>`;
+    if(s===2&&!nx&&["check","bet","call","fold"].includes(st.act)){
       const g=rvRiverGTO(rv.board,pot,ob,amt,st.act,combos,wBefore,heroL,H);
       if(g){ v=g.v; t=g.t; x=g.x+`<br><span class="help">Calcul simple : ${x}</span>`; }
     }
@@ -2223,6 +2266,10 @@ function hhToRv(h){
   Object.assign(r,{table:tt,depth:I.depth||20,pos:I.pos,oppPos:vpos,hero:h.cards.slice(),opp:h.shows[V]?h.shows[V].slice():[-1,-1],range,
     preSit:I.f3Opp?"3bet":(I.spot==="raised"||I.spot==="3bet+")?"raised":"open",preAct:preAct==="bet"?"raise":preAct});
   r.board=[-1,-1,-1,-1,-1]; h.board.forEach((c,i)=>r.board[i]=c);
+  if(h.board.length>=3) h.seats.forEach((_,o)=>{ if(o===h.hero||o===V) return; if(h.acts.some(x=>x[0]===0&&x[1]===o&&x[2]==="f")) return;
+    if(!h.acts.some(x=>x[1]===o)&&I.posAll[o]!=="BB") return;
+    const fo=h.acts.find(x=>x[0]>0&&x[1]===o&&x[2]==="f"), p=I.posAll[o];
+    r.extra.push({range:o===I.opener?(OP[p]||OPEN.CO):p==="BB"?FACING[0].raise+", "+FACING[0].call:RV_CALLER,until:String(fo?Math.min(2,fo[0]-1):2)}); });
   const v=villains.find(x=>x.name===h.seats[V][0]); r.villain=v?String(v.id):"";
   for(let s=1;s<=3;s++){
     const st=I.streets[s]; if(!st) continue;
@@ -3201,6 +3248,7 @@ function init(){
     if(t.dataset.prange!==undefined){ const k=+t.dataset.prange; players[k].range=t.value; saveEq(); $("rinfo"+k).innerHTML=rangeInfo(t.value); }
     if(t.dataset.icmn!==undefined){ icmPlayers[+t.dataset.icmn].n=t.value; calcIcm(); }
     if(t.dataset.icms!==undefined){ icmPlayers[+t.dataset.icms].s=+t.value||0; calcIcm(); }
+    if(t.dataset.rvx){ const [i,f]=t.dataset.rvx.split(":"); rv.extra[+i][f]=t.value; saveRv(); if(f==="range"){ const e=$("rvxInfo"+i); if(e) e.innerHTML=rangeInfo(t.value); } }
     if(t.dataset.rvs){ const [s,f]=t.dataset.rvs.split(":"); rv.streets[+s][f]=t.value; saveRv(); if(f==="act") renderRvStreets(); }
     const VK={vName:"name",vDesc:"desc",vNotes:"notes",vLoose:"loose",vAggr:"aggr"}[t.id];
     if(VK){
@@ -3363,6 +3411,8 @@ function init(){
     rvList.unshift({id:Date.now(),date:today(),hero:rv.hero.slice(),board:rv.board.filter(c=>c>=0),sum:rv.lastSummary||"",data:JSON.parse(JSON.stringify(rv))});
     rvList=rvList.slice(0,200); store.set("pgto_rvlist",rvList); renderRvList(); alert("Main enregistrée ✅");
   };
+  $("rvAddX").onclick=()=>{ if(!Array.isArray(rv.extra)) rv.extra=[]; rv.extra.push({range:RV_CALLER,until:"2"}); saveRv(); renderRvExtra(); };
+  document.addEventListener("click",e=>{ const d=e.target.closest("[data-rvxdel]"); if(d){ rv.extra.splice(+d.dataset.rvxdel,1); saveRv(); renderRvExtra(); } });
   $("rvNew").onclick=()=>{ if(!confirm("Effacer la main en cours pour en noter une nouvelle ?")) return;
     rv=newRv(); saveRv(); renderRv(); $("rvOut").innerHTML='<p class="help">Remplis la main puis clique sur « Analyser la main ».</p>'; };
 

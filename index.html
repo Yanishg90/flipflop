@@ -41,7 +41,7 @@ main{max-width:1150px;margin:0 auto;padding:16px 16px calc(100px + env(safe-area
 .card h3{margin:14px 0 6px;font-size:15px}
 .help{color:var(--mute);font-size:13px;margin:4px 0 10px}
 .err{color:var(--bad);font-weight:600}
-code{background:#0d1712;padding:1px 5px;border-radius:4px}
+code{background:#0d1712;padding:1px 5px;border-radius:4px;overflow-wrap:anywhere}
 .slots{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
 .slot{width:46px;height:64px;border-radius:7px;border:2px dashed #4b6b58;background:#122019;display:flex;align-items:center;justify-content:center;cursor:pointer;font-weight:700;font-size:18px;user-select:none;color:var(--mute)}
 .slot.f{border:none;background:#fff;box-shadow:0 2px 4px #0006}
@@ -69,6 +69,7 @@ table{width:100%;border-collapse:collapse;font-size:14px}
 td,th{padding:5px 4px;border-bottom:1px solid var(--line);text-align:left}
 th{color:var(--mute);font-weight:600}
 td.r,th.r{text-align:right}
+td.r b{white-space:nowrap}
 .tscroll{overflow-x:auto}
 .kpi{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:10px}
 .kpi div{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px}
@@ -266,6 +267,22 @@ details ul{padding-left:20px;margin:6px 0}
    <div class="card"><h2>Mes mains enregistrées</h2><div class="tscroll" id="rvList"></div></div>
   </div>
  </div>
+</section>
+
+<!-- ================= MON JEU (historiques importés) ================= -->
+<section id="t-jeu" class="tab">
+ <p class="intro">Importe tes historiques de mains Winamax (ou PokerStars) : Flip&amp;Flop analyse toutes tes mains d'un coup, calcule tes statistiques et trouve tes erreurs. Tout reste sur ton appareil.</p>
+ <div class="card">
+  <h2>📥 Importer mes mains</h2>
+  <p class="help">Sur ton ordinateur, Winamax range tes mains dans le dossier :<br><code>C:\Users\(ton nom)\AppData\Roaming\winamax\documents\accounts\(ton pseudo)\history</code><br>Choisis un ou plusieurs fichiers <code>.txt</code>. Seul le Texas Hold'em No Limit est analysé (l'Omaha est ignoré). Tu peux réimporter les mêmes fichiers : les doublons sont évités.</p>
+  <div class="row"><button class="btn" id="hhPick">Choisir mes fichiers</button><input type="file" id="hhFiles" accept=".txt,text/plain" multiple hidden><button class="btn sec small" id="hhClear">Effacer les mains importées</button></div>
+  <details><summary>Ou coller le texte d'une main</summary>
+   <textarea id="hhPaste" rows="6" style="width:100%;background:#0d1712;color:var(--txt);border:1px solid var(--line);border-radius:7px;padding:8px;font:13px monospace;margin-top:8px" placeholder="Colle ici une ou plusieurs mains copiées depuis Winamax"></textarea>
+   <div class="row"><button class="btn sec small" id="hhPasteBtn">Analyser ce texte</button></div>
+  </details>
+  <div id="hhMsg"></div>
+ </div>
+ <div id="hhBody" style="margin-top:16px"></div>
 </section>
 
 <!-- ================= JOUEURS ================= -->
@@ -787,7 +804,14 @@ const GLOSS={
   serre:["Serré / large","Un joueur serré joue peu de mains (seulement les bonnes). Un joueur large en joue beaucoup, même des mains faibles."],
   agressif:["Passif / agressif","Un joueur agressif mise et relance souvent. Un joueur passif suit (paie) et checke, il mise rarement."],
   tilt:["Tilt","Jouer mal parce qu'on est énervé ou frustré après des coups perdus. Le meilleur remède : faire une pause."],
-  bankroll:["Bankroll","L'argent réservé au poker. On garde au moins 30 caves en cash game et 100 inscriptions en tournoi pour encaisser les mauvaises séries."]
+  bankroll:["Bankroll","L'argent réservé au poker. On garde au moins 30 caves en cash game et 100 inscriptions en tournoi pour encaisser les mauvaises séries."],
+  vpip:["VPIP","Le % de mains où tu mets de l'argent volontairement avant le flop (tu paies ou tu relances, sans compter les blindes obligatoires). Il dit si tu joues beaucoup de mains (large) ou peu (serré)."],
+  pfr:["PFR","Le % de mains où tu relances avant le flop. Un bon joueur a un PFR proche de son VPIP : il relance plus qu'il ne paie."],
+  cbet:["C-bet (mise de continuation)","Quand tu as relancé avant le flop, tu mises encore au flop. Ça marche souvent car l'adversaire rate le flop la plupart du temps."],
+  af:["Facteur d'agression (AF)","Après le flop : (mises + relances) ÷ paiements. Moins de 1,5 = passif (tu suis trop), entre 2 et 4 = bien, plus de 5 = très agressif."],
+  wtsd:["WTSD (aller à l'abattage)","Le % des flops vus où tu vas jusqu'à montrer tes cartes. Trop haut = tu paies trop jusqu'au bout. Trop bas = tu abandonnes trop facilement."],
+  steal:["Vol des blindes","Relancer depuis le CO, le bouton ou la petite blinde quand tout le monde s'est couché, pour gagner les blindes. Les bons joueurs le font souvent."],
+  bb100:["bb/100","Ce que tu gagnes (ou perds) en grosses blindes pour 100 mains jouées. C'est la mesure de base pour savoir si tu gagnes vraiment."]
 };
 function showGloss(k){ const g=GLOSS[k]; if(!g) return; $("glossT").textContent=g[0]; $("glossD").textContent=g[1]; $("gloss").classList.add("on"); }
 
@@ -1479,6 +1503,337 @@ function analyzeBluffs(){
   out.innerHTML=h;
 }
 
+/* ===================================================================
+   MON JEU : import des historiques (Winamax, PokerStars) et analyse
+=================================================================== */
+const hhNum=s=>parseFloat(String(s).replace(/,/g,"").replace(/[^\d.]/g,""))||0;
+const hhCard=s=>{ const r=RANKS.indexOf(s[0]), u="shdc".indexOf(s[1]); return r<0||u<0?-1:r*4+u; };
+let hhHands=store.get("pgto_hh",[]); if(!Array.isArray(hhHands)) hhHands=[];
+const hhCache=new Map();
+let goTab=()=>{};
+
+// découpe un fichier en mains et lit chaque main Hold'em No Limit
+function hhParse(text){
+  const hands=[], skip={autre:0,erreur:0};
+  const parts=String(text).replace(/\r/g,"").split(/\n(?=Winamax Poker - |PokerStars (?:Zoom )?(?:Hand|Game) #)/);
+  for(const b of parts){
+    const L=b.split("\n").map(x=>x.trim()).filter(Boolean);
+    if(!L.length||!/^(Winamax Poker|PokerStars)/.test(L[0])) continue;
+    if(!/hold'?em no limit/i.test(L[0])){ skip.autre++; continue; }
+    try{ const h=hhOne(L); if(h) hands.push(h); else skip.erreur++; }catch(e){ skip.erreur++; }
+  }
+  return {hands,skip};
+}
+function hhOne(L){
+  const head=L[0], site=head.startsWith("Winamax")?"W":"PS";
+  const id=(head.match(/HandId: #(\S+)/)||head.match(/Hand #(\d+)/)||[])[1]; if(!id) return null;
+  const tour=/Tournament/i.test(head);
+  const title=tour?((head.match(/Tournament "([^"]+)"/)||head.match(/Tournament #(\d+)/)||[])[1]||"Tournoi"):"Cash game";
+  const nums=((head.match(/\(([^()]*\d[^()]*\/[^()]*)\)/)||[])[1]||"").split("/").map(hhNum);
+  let ante=0,sb=0,bb=0; if(nums.length>=3) [ante,sb,bb]=nums.slice(-3); else if(nums.length===2) [sb,bb]=nums;
+  const dm=head.match(/(\d{4})\/(\d\d)\/(\d\d) (\d\d):(\d\d):(\d\d)/), ts=dm?Date.UTC(+dm[1],dm[2]-1,+dm[3],+dm[4],+dm[5],+dm[6]):0;
+  const tl=L.find(x=>x.startsWith("Table:"))||"", max=+(tl.match(/(\d+)-max/)||[])[1]||6, btn=+(tl.match(/Seat #(\d+) is the button/)||[])[1]||0;
+  const seats=[], idx={}, posts=[], acts=[], col={}, ret={}, shows={};
+  let street=-1, hero=-1, cards=null, board=[], sd=false;
+  const P=n=>idx[n];
+  for(let j=1;j<L.length;j++){
+    const x=L[j]; let m;
+    if(x.startsWith("***")){
+      if(/PRE-FLOP|HOLE CARDS/.test(x)) street=0;
+      else if(/\*\*\* FLOP/.test(x)) street=1; else if(/\*\*\* TURN/.test(x)) street=2; else if(/\*\*\* RIVER/.test(x)) street=3;
+      else if(/SHOW ?DOWN/.test(x)){ street=4; sd=true; } else if(/SUMMARY/.test(x)) break;
+      if(street>=1&&street<=3) board=(x.match(/\b[2-9TJQKA][shdc]\b/g)||[]).map(hhCard);
+      continue;
+    }
+    if(street===-1&&(m=x.match(/^Seat (\d+): (.+?) \([$€]?([\d.,]+)\s*€?(?: in chips)?(?:,[^)]*)?\)/))){ if(!(m[2] in idx)){ idx[m[2]]=seats.length; seats.push([m[2],+m[1],hhNum(m[3])]); } continue; }
+    if((m=x.match(/^Dealt to (.+?) \[([2-9TJQKA][shdc]) ([2-9TJQKA][shdc])\]/))){ hero=P(m[1]); cards=[hhCard(m[2]),hhCard(m[3])]; continue; }
+    if((m=x.match(/^(.+?):? posts (?:the )?(small blind|big blind|ante)\s+[$€]?([\d.,]+)/))){ const p=P(m[1]); if(p!==undefined) posts.push([p,m[2]==="ante"?"a":m[2]==="small blind"?"sb":"bb",hhNum(m[3])]); continue; }
+    if((m=x.match(/^(.+?):? (folds|checks|calls|bets|raises)(?:\s+[$€]?([\d.,]+)€?)?(?:\s+to\s+[$€]?([\d.,]+)€?)?(\s+and is all-in)?/))){
+      const p=P(m[1]); if(p===undefined||street<0||street>3) continue;
+      acts.push([street,p,{folds:"f",checks:"x",calls:"c",bets:"b",raises:"r"}[m[2]],m[3]?hhNum(m[3]):0,m[4]?hhNum(m[4]):0]); continue; }
+    if((m=x.match(/^Uncalled bet \([$€]?([\d.,]+)€?\) returned to (.+)$/))){ const p=P(m[2]); if(p!==undefined) ret[p]=(ret[p]||0)+hhNum(m[1]); continue; }
+    if((m=x.match(/^(.+?) collected [$€]?([\d.,]+)/))){ const p=P(m[1]); if(p!==undefined) col[p]=(col[p]||0)+hhNum(m[2]); continue; }
+    if((m=x.match(/^(.+?):? shows \[([2-9TJQKA][shdc]) ([2-9TJQKA][shdc])/))){ const p=P(m[1]); if(p!==undefined) shows[p]=[hhCard(m[2]),hhCard(m[3])]; }
+  }
+  if(hero<0||!cards||!bb||seats.length<2) return null;
+  // jetons investis -> résultat du joueur
+  const n=seats.length, inv=new Array(n).fill(0), commit=new Array(n).fill(0);
+  const flush=()=>{ for(let k=0;k<n;k++){ inv[k]+=commit[k]; commit[k]=0; } };
+  for(const [p,k,a] of posts){ if(k==="a") inv[p]+=a; else commit[p]+=a; }
+  let cur=0;
+  for(const [s,p,v,a,to] of acts){ if(s!==cur){ flush(); cur=s; } if(v==="c"||v==="b") commit[p]+=a; else if(v==="r") commit[p]=to||commit[p]+a; }
+  flush();
+  const net=Math.round(((col[hero]||0)+(ret[hero]||0)-inv[hero])*100)/100;
+  return {id:site+id,site,ts,tour,title,ante,sb,bb,max,btn,seats,hero,cards,board,posts,acts,shows,sd,net};
+}
+
+// places à la table (UTG … BTN, SB, BB) à partir du bouton
+function hhPositions(h){
+  const order=h.seats.map((s,i)=>[s[1],i]).sort((a,b)=>a[0]-b[0]);
+  let k=order.findIndex(x=>x[0]>h.btn); if(k<0) k=0;
+  const ring=[...order.slice(k),...order.slice(0,k)].map(x=>x[1]); // commence juste après le bouton, finit par le bouton
+  const n=ring.length, pos=new Array(h.seats.length).fill("?");
+  if(n===2){ pos[ring[1]]="SB"; pos[ring[0]]="BB"; }
+  else {
+    pos[ring[0]]="SB"; pos[ring[1]]="BB"; pos[ring[n-1]]="BTN";
+    const mid=ring.slice(2,n-1), names=(h.max<=6?["UTG","HJ","CO"]:["UTG","UTG+1","UTG+2","LJ","HJ","CO"]).slice(-mid.length);
+    mid.forEach((p,i)=>pos[p]=names[i]||"UTG");
+  }
+  for(const [p,k] of h.posts){ if(k==="sb") pos[p]="SB"; if(k==="bb") pos[p]="BB"; }
+  return pos;
+}
+function scenFacing(pos,opPos){
+  let s=SCEN.find(x=>!x.open&&x.id===(pos+"_"+opPos).toLowerCase());
+  if(s) return {s,approx:false};
+  const early=["UTG","UTG+1","UTG+2","LJ","HJ"].includes(opPos);
+  const id=pos==="BB"?(early?"bb_utg":opPos==="CO"?"bb_co":opPos==="SB"?"bb_sb":"bb_btn"):pos==="SB"?"sb_btn":(early?"co_utg":"btn_co");
+  return {s:SCEN.find(x=>x.id===id),approx:true};
+}
+const PRE_ERR={
+  open_large:["Mains trop faibles jouées en premier","Tu as ouvert (ou payé) avec des mains que le tableau préflop dit de jeter. Ces mains perdent de l'argent à long terme : jette-les."],
+  open_serre:["Bonnes mains jetées en premier","Tu as jeté des mains qu'il fallait relancer quand personne n'avait joué. Tu rates des occasions de gagner les blindes et des pots."],
+  limp:["Limp (payer sans relancer)","Quand personne n'a relancé, tu as juste payé. Il vaut mieux relancer ou jeter : le limp te met en difficulté après le flop."],
+  def_large:["Trop de mains jouées face à une relance","Face à une relance, tu as payé ou relancé avec des mains trop faibles. Joue plus serré quand quelqu'un a déjà relancé."],
+  def_serre:["Trop de mains jetées face à une relance","Tu t'es couché avec des mains qu'il fallait défendre (payer ou relancer), surtout en grosse blinde. Tu te fais voler trop facilement."],
+  mix:["Payer au lieu de relancer (ou l'inverse)","La main était jouable, mais pas de la bonne façon : par exemple payer alors qu'il fallait sur-relancer. Erreur légère."]
+};
+// toutes les infos d'une main pour le joueur (toi) et les adversaires
+function hhInfo(h){
+  if(hhCache.has(h.id)) return hhCache.get(h.id);
+  const pos=hhPositions(h), H=h.hero, n=h.seats.length, tt=h.max<=6?6:9;
+  const others=h.seats.map((s,i)=>i).filter(i=>i!==H);
+  const eff=Math.min(h.seats[H][2],Math.max(...others.map(i=>h.seats[i][2])))/h.bb;
+  const I={pos:pos[H],posAll:pos,tt,eff,netBB:h.net/h.bb,cls:classOf(h.cards[0],h.cards[1]),
+    vpip:false,pfr:false,tbOpp:false,tb:false,f3Opp:false,f3:false,stealOpp:false,steal:false,
+    saw:false,cbOpp:false,cb:false,fcbOpp:false,fcb:false,pa:0,pc:0,wtsd:false,wsd:false,folded:false,
+    spot:null,err:null,scen:null,act:null,opp:{},streets:{},potStart:{},villain:-1,opener:-1,threeBettor:-1,lastRaiser:-1};
+  // --- avant le flop
+  const pre=h.acts.filter(a=>a[0]===0);
+  let raises=0, limpers=0, heroFirst=null, heroRaisedFirst=false, faced3=false;
+  for(const o of others) I.opp[o]={vpip:false,pfr:false,pa:0,pc:0};
+  for(const [s,p,v] of pre){
+    if(p===H){
+      if(heroFirst===null){ heroFirst=v; I.spot=raises===0?(limpers?"limp":"open"):raises===1?"raised":"3bet+"; if(raises===1) I.tbOpp=true; if(raises===0&&!limpers&&["CO","BTN","SB"].includes(I.pos)) I.stealOpp=true; heroRaisedFirst=raises===0&&v==="r"; }
+      else if(heroRaisedFirst&&faced3&&!I.f3Opp){ I.f3Opp=true; I.f3=v==="f"; I.act3=v; }
+      if(v==="c"||v==="r") I.vpip=true; if(v==="r") I.pfr=true; if(v==="f") I.folded=true;
+    } else {
+      if(v==="c"||v==="r") I.opp[p].vpip=true; if(v==="r") I.opp[p].pfr=true;
+      if(v==="r"&&heroRaisedFirst&&!faced3){ faced3=true; I.threeBettor=p; }
+    }
+    if(v==="r"){ raises++; if(raises===1) I.opener=p; I.lastRaiser=p; } else if(v==="c"&&raises===0) limpers++;
+  }
+  if(I.tbOpp&&heroFirst==="r") I.tb=true;
+  if(I.stealOpp&&heroFirst==="r") I.steal=true;
+  I.heroFirst=heroFirst;
+  // --- après le flop : pot au début de chaque tour, actions de toi, adversaires
+  let pot=h.posts.reduce((a,x)=>a+x[2],0); const commit=new Array(n).fill(0); h.posts.forEach(([p,k,a])=>{ if(k!=="a") commit[p]+=a; });
+  let cur=0, betOnStreet=false, firstBettor=-1;
+  const settle=()=>{ for(let k=0;k<n;k++) commit[k]=0; };
+  for(const [s,p,v,a,to] of h.acts){
+    if(s!==cur){ settle(); cur=s; betOnStreet=false; firstBettor=-1; I.potStart[s]=pot; }
+    const maxC=Math.max(...commit);
+    if(p===H&&s>0&&!I.streets[s]) I.streets[s]={v,amt:v==="r"?to:a,face:maxC-commit[H],betBefore:betOnStreet};
+    if(s>0){
+      if(p===H){ if(v==="b"||v==="r") I.pa++; else if(v==="c") I.pc++; if(v==="f") I.folded=true; }
+      else if(I.opp[p]){ if(v==="b"||v==="r") I.opp[p].pa++; else if(v==="c") I.opp[p].pc++; }
+      if(s===1&&v==="b"&&firstBettor<0) firstBettor=p;
+      if(s===1&&p===H&&firstBettor===I.lastRaiser&&I.lastRaiser!==H&&I.fcbOpp===false&&firstBettor>=0){ I.fcbOpp=true; I.fcb=v==="f"; }
+    }
+    if(v==="b"||v==="r") betOnStreet=true;
+    if(v==="c"||v==="b"){ commit[p]+=a; pot+=a; } else if(v==="r"){ const add=(to||commit[p]+a)-commit[p]; commit[p]+=add; pot+=add; }
+  }
+  I.saw=h.board.length>=3&&!pre.some(x=>x[1]===H&&x[2]==="f");
+  if(I.saw&&I.lastRaiser===H&&I.streets[1]&&!I.streets[1].betBefore){ I.cbOpp=true; I.cb=I.streets[1].v==="b"; }
+  I.wtsd=I.saw&&h.sd&&!h.acts.some(x=>x[1]===H&&x[2]==="f");
+  I.wsd=I.wtsd&&h.net>0;
+  // adversaire principal (pour « Revoir »)
+  const stayed=others.filter(o=>!h.acts.some(x=>x[1]===o&&x[2]==="f"));
+  I.villain=(stayed.length?stayed:others).sort((a,b)=>h.acts.filter(x=>x[1]===b).length-h.acts.filter(x=>x[1]===a).length)[0];
+  // --- erreur préflop par rapport aux tableaux (tapis d'au moins 25 grosses blindes)
+  if(eff>=25&&n>=3&&heroFirst){
+    let sc=null, act=heroFirst;
+    if(I.spot==="open"&&I.pos!=="BB") sc={s:SCEN.find(x=>x.id===(tt===6?"open_":"open9_")+I.pos)};
+    else if(I.spot==="raised"&&I.opener>=0) sc=scenFacing(I.pos,pos[I.opener]);
+    if(I.f3Opp){ sc={s:SCEN.find(x=>x.id===(["CO","BTN","SB"].includes(I.pos)?"vs3b_lp":"vs3b_ep"))}; act=I.act3; }
+    if(sc&&sc.s&&act!=="x"){
+      const a={r:"raise",c:"call",f:"fold"}[act], rec=actionOf(sc.s,I.cls); I.scen=sc.s; I.act=a; I.rec=rec;
+      if(a!==rec){
+        const first=sc.s.open;
+        I.err=rec==="fold"?(first?"open_large":"def_large"):a==="fold"?(first?"open_serre":"def_serre"):(first&&a==="call")?"limp":"mix";
+      }
+    }
+  }
+  hhCache.set(h.id,I); return I;
+}
+
+// statistiques de toi sur un groupe de mains
+function hhStats(list){
+  const S={n:list.length,vpip:0,pfr:0,tb:0,tbO:0,f3:0,f3O:0,st:0,stO:0,cb:0,cbO:0,fcb:0,fcbO:0,pa:0,pc:0,saw:0,wtsd:0,wsd:0,bb:0,errs:{},graded:0,pos:{}};
+  for(const h of list){
+    const I=hhInfo(h);
+    S.vpip+=I.vpip; S.pfr+=I.pfr; S.tb+=I.tb; S.tbO+=I.tbOpp; S.f3+=I.f3; S.f3O+=I.f3Opp; S.st+=I.steal; S.stO+=I.stealOpp;
+    S.cb+=I.cb; S.cbO+=I.cbOpp; S.fcb+=I.fcb; S.fcbO+=I.fcbOpp; S.pa+=I.pa; S.pc+=I.pc; S.saw+=I.saw; S.wtsd+=I.wtsd; S.wsd+=I.wsd; S.bb+=I.netBB;
+    if(I.scen) S.graded++; if(I.err) (S.errs[I.err]=S.errs[I.err]||[]).push(h);
+    const p=S.pos[I.pos]||(S.pos[I.pos]={n:0,vpip:0,pfr:0,bb:0}); p.n++; p.vpip+=I.vpip; p.pfr+=I.pfr; p.bb+=I.netBB;
+  }
+  return S;
+}
+// cibles (joueur gagnant) selon le nombre de joueurs à la table
+function hhTargets(tt){
+  return tt===6
+    ?{vpip:[20,28],pfr:[16,23],tb:[6,11],f3:[40,60],st:[30,48],cb:[50,72],fcb:[35,55],af:[2,4],wtsd:[24,32],wsd:[49,100]}
+    :{vpip:[15,22],pfr:[12,18],tb:[5,9],f3:[40,60],st:[28,45],cb:[50,72],fcb:[35,55],af:[2,4],wtsd:[24,32],wsd:[49,100]};
+}
+function renderHH(){
+  const box=$("hhBody");
+  if(!hhHands.length){ box.innerHTML='<div class="card"><p class="help">Aucune main importée pour l\'instant. Choisis tes fichiers d\'historique ci-dessus.</p></div>'; return; }
+  const f=store.get("pgto_hhfilter","all");
+  const list=hhHands.filter(h=>f==="all"||(f==="cash"?!h.tour:h.tour));
+  const S=hhStats(list), tt=list.filter(h=>h.max<=6).length>=list.length/2?6:9, T=hhTargets(tt);
+  const pct=(a,b)=>b?a/b*100:null, af=S.pc?S.pa/S.pc:(S.pa?S.pa:null);
+  const rows=[
+    ["vpip","VPIP",pct(S.vpip,S.n),S.n,"Mains jouées (payées ou relancées)"],
+    ["pfr","PFR",pct(S.pfr,S.n),S.n,"Mains relancées avant le flop"],
+    ["3bet","3-bet",pct(S.tb,S.tbO),S.tbO,"Sur-relance face à une relance","tb"],
+    ["3bet","Se couche face au 3-bet",pct(S.f3,S.f3O),S.f3O,"Après avoir relancé, tu te couches face à une sur-relance","f3"],
+    ["steal","Vol des blindes",pct(S.st,S.stO),S.stO,"Relance depuis CO / bouton / petite blinde quand personne n'a joué","st"],
+    ["cbet","C-bet au flop",pct(S.cb,S.cbO),S.cbO,"Tu continues à miser au flop après avoir relancé","cb"],
+    ["cbet","Se couche face au c-bet",pct(S.fcb,S.fcbO),S.fcbO,"Tu abandonnes au flop quand le relanceur mise","fcb"],
+    ["af","Agression après le flop",af,S.pa+S.pc,"(mises + relances) ÷ paiements","af"],
+    ["wtsd","Va à l'abattage",pct(S.wtsd,S.saw),S.saw,"Sur les flops que tu vois","wtsd"],
+    ["wtsd","Gagne à l'abattage",pct(S.wsd,S.wtsd),S.wtsd,"Quand tu montres tes cartes","wsd"]
+  ];
+  const keyOf=r=>r[5]||r[0];
+  const judge=r=>{ const t=T[keyOf(r)]; if(r[2]===null||r[3]<15||!t) return ["⚪","pas assez de mains"]; return r[2]<t[0]?["⚠️","trop bas"]:r[2]>t[1]?["⚠️","trop haut"]:["✅","bien"]; };
+  const fmt=(r)=>r[2]===null?"—":keyOf(r)==="af"?fr(r[2],1):fr(r[2],0)+" %";
+  const tgt=r=>{ const t=T[keyOf(r)]; return !t?"":keyOf(r)==="af"?`${t[0]} à ${t[1]}`:keyOf(r)==="wsd"?`≥ ${t[0]} %`:`${t[0]} à ${t[1]} %`; };
+  // fuites
+  const leaks=[];
+  const add=(sev,t,d)=>leaks.push([sev,t,d]);
+  const v=pct(S.vpip,S.n), p=pct(S.pfr,S.n);
+  if(S.n>=30){
+    if(v>T.vpip[1]) add(3,"Tu joues trop de mains",`Tu joues ${fr(v,0)} % de tes mains, un bon joueur en joue ${T.vpip[0]} à ${T.vpip[1]} %. Suis les tableaux préflop et jette plus souvent.`);
+    if(v<T.vpip[0]) add(2,"Tu joues trop peu de mains",`Tu ne joues que ${fr(v,0)} % de tes mains. Tu laisses passer des coups rentables, surtout au bouton et au CO.`);
+    if(v-p>8) add(3,"Tu paies trop au lieu de relancer",`Écart de ${fr(v-p,0)} points entre VPIP et PFR : tu entres souvent dans les coups en payant. Relance tes bonnes mains et jette les autres.`);
+  }
+  const chk=(k,r,lo,hi)=>{ const t=T[k]; if(r[2]===null||r[3]<15) return; if(r[2]<t[0]) lo(); else if(r[2]>t[1]) hi(); };
+  chk("tb",rows[2],()=>add(2,"Pas assez de 3-bets",`Tu sur-relances ${fr(rows[2][2],0)} % du temps face à une relance (cible ${T.tb[0]}-${T.tb[1]} %). Sur-relance plus tes meilleures mains et quelques bluffs (A5s, A4s).`),()=>add(1,"Beaucoup de 3-bets","Tu sur-relances très souvent : vérifie que ce ne sont pas des mains trop faibles."));
+  chk("f3",rows[3],()=>{},()=>add(2,"Tu te couches trop face aux 3-bets",`Tu abandonnes ${fr(rows[3][2],0)} % du temps quand on te sur-relance : les adversaires peuvent te sur-relancer avec n'importe quoi.`));
+  chk("st",rows[4],()=>add(2,"Tu ne voles pas assez les blindes",`Depuis le CO, le bouton et la petite blinde, tu ne relances que ${fr(rows[4][2],0)} % du temps quand personne n'a joué. Ouvre plus large dans ces places.`),()=>{});
+  chk("cb",rows[5],()=>add(1,"Pas assez de c-bets","Après avoir relancé, mise plus souvent au flop : l'adversaire rate souvent le flop."),()=>add(1,"Trop de c-bets","Tu mises au flop presque à chaque fois : les bons joueurs vont te relancer en bluff. Checke parfois tes mains moyennes."));
+  chk("fcb",rows[6],()=>{},()=>add(2,"Tu abandonnes trop au flop",`Tu te couches ${fr(rows[6][2],0)} % du temps face à une mise de continuation. Défends plus avec tes paires et tes tirages.`));
+  if(af!==null&&S.pa+S.pc>=20){ if(af<T.af[0]) add(2,"Trop passif après le flop",`Ton agression est de ${fr(af,1)} : tu paies beaucoup et tu mises peu. Mise tes bonnes mains pour la valeur au lieu de juste suivre.`); if(af>T.af[1]+1) add(1,"Très agressif après le flop","Tu mises et relances énormément : attention aux bluffs trop fréquents."); }
+  chk("wtsd",rows[8],()=>add(1,"Tu abandonnes souvent avant l'abattage","Tu vas rarement jusqu'au bout : tu te fais peut-être bluffer trop souvent."),()=>add(2,"Tu vas trop souvent à l'abattage","Tu paies jusqu'au bout trop souvent : sur les grosses mises de la river, les joueurs ont souvent ce qu'ils annoncent."));
+  for(const [k,arr] of Object.entries(S.errs)){ const share=arr.length/Math.max(1,S.graded); if(arr.length>=2&&share>=0.04) add(k==="mix"?1:share>0.1?3:2,PRE_ERR[k][0],`${arr.length} main${arr.length>1?"s":""} sur ${S.graded} vérifiées. ${PRE_ERR[k][1]}`); }
+  leaks.sort((a,b)=>b[0]-a[0]);
+  // résultats : bb/100 en cash game, jetons en tournoi (les blindes y augmentent)
+  const cashL=list.filter(h=>!h.tour), tourL=list.filter(h=>h.tour);
+  const res=cashL.length?cashL.reduce((a,h)=>a+h.net/h.bb,0)/cashL.length*100:null;
+  const chips=tourL.reduce((a,h)=>a+h.net,0);
+  const errTotal=Object.values(S.errs).reduce((a,x)=>a+x.length,0);
+  let h=`<div class="grid2"><div class="col">
+    <div class="card"><h2>📊 Mes statistiques <button class="q" data-q="vpip">?</button></h2>
+      <div class="row"><select id="hhFilter"><option value="all">Toutes mes mains</option><option value="cash">Cash game</option><option value="tour">Tournois</option></select></div>
+      <div class="kpi"><div><small>Mains analysées</small><b>${S.n}</b><small>table de ${tt} joueurs surtout</small></div>
+        ${res!==null?`<div><small>Résultat en cash game</small><b style="color:${res>=0?"var(--acc)":"var(--bad)"}">${res>=0?"+":""}${fr(res,1)} bb/100</b><small>sur ${cashL.length} mains <button class="q" data-q="bb100">?</button></small></div>`:""}
+        ${tourL.length?`<div><small>Résultat en tournoi</small><b style="color:${chips>=0?"var(--acc)":"var(--bad)"}">${chips>=0?"+":""}${Math.round(chips).toLocaleString("fr-FR")}</b><small>jetons sur ${tourL.length} mains</small></div>`:""}
+        <div><small>Erreurs préflop</small><b style="color:${errTotal?"var(--acc2)":"var(--acc)"}">${S.graded?pc(errTotal/S.graded,0):"—"}</b><small>${errTotal} sur ${S.graded} décisions vérifiées</small></div></div>
+      <div class="tscroll" style="margin-top:10px"><table><tr><th>Statistique</th><th class="r">Toi</th><th class="r">Bon joueur</th><th></th></tr>
+      ${rows.map(r=>{ const j=judge(r); return `<tr><td>${r[1]} <button class="q" data-q="${r[0]}">?</button><br><span class="help">${r[4]} · ${r[3]} cas</span></td><td class="r"><b>${fmt(r)}</b></td><td class="r help">${tgt(r)}</td><td class="r" title="${j[1]}">${j[0]}</td></tr>`; }).join("")}</table></div>
+      ${S.n<200?`<p class="note">Avec ${S.n} mains, les statistiques sont encore approximatives. Elles deviennent fiables à partir de 500 à 1 000 mains.</p>`:""}
+    </div>
+    <div class="card"><h2>🚨 Mes fuites : ce qu'il faut corriger en priorité</h2>
+      ${leaks.length?leaks.map(([sev,t,d])=>`<div class="rvi ${sev>=3?"rv-bad":sev===2?"rv-ok":""}"><b>${sev>=3?"🔴":sev===2?"🟠":"🟡"} ${t}</b><br>${d}</div>`).join(""):'<p>Aucune grosse fuite trouvée pour l\'instant 👏</p>'}
+    </div>
+    <div class="card"><h2>📍 Par place à la table</h2><div class="tscroll"><table><tr><th>Place</th><th class="r">Mains</th><th class="r">VPIP</th><th class="r">PFR</th><th class="r">Résultat</th></tr>
+      ${["UTG","UTG+1","UTG+2","LJ","HJ","CO","BTN","SB","BB"].filter(k=>S.pos[k]).map(k=>{ const q=S.pos[k]; return `<tr><td>${k}</td><td class="r">${q.n}</td><td class="r">${pc(q.vpip/q.n,0)}</td><td class="r">${pc(q.pfr/q.n,0)}</td><td class="r" style="color:${q.bb>=0?"var(--acc)":"var(--bad)"}">${q.bb>=0?"+":""}${fr(q.bb,1)} bb</td></tr>`; }).join("")}</table></div></div>
+  </div><div class="col">
+    <div class="card"><h2>🃏 Mes erreurs avant le flop</h2>
+      <p class="help">Chaque décision avant le flop est comparée aux tableaux préflop (quand tu avais au moins 25 grosses blindes).</p>
+      ${Object.keys(S.errs).length?Object.entries(S.errs).sort((a,b)=>b[1].length-a[1].length).map(([k,arr])=>`<details><summary>${PRE_ERR[k][0]} : ${arr.length}</summary><p class="help">${PRE_ERR[k][1]}</p>${hhRows(arr.slice(0,12))}</details>`).join(""):'<p>Aucune erreur préflop trouvée 👏</p>'}
+    </div>
+    <div class="card"><h2>🗂️ Mes mains</h2>
+      <div class="row"><select id="hhSort"><option value="loss">Les plus grosses pertes</option><option value="win">Les plus gros gains</option><option value="recent">Les plus récentes</option></select></div>
+      ${hhRows(hhSorted(list,store.get("pgto_hhsort","loss")).slice(0,30))}
+    </div>
+    <div class="card"><h2>👥 Adversaires rencontrés</h2>${hhOppTable(list)}</div>
+  </div></div>`;
+  box.innerHTML=h;
+  $("hhFilter").value=f; $("hhSort").value=store.get("pgto_hhsort","loss");
+}
+function hhSorted(list,mode){
+  const a=list.slice();
+  if(mode==="win") a.sort((x,y)=>y.net/y.bb-x.net/x.bb); else if(mode==="recent") a.sort((x,y)=>y.ts-x.ts); else a.sort((x,y)=>x.net/x.bb-y.net/y.bb);
+  return a;
+}
+function hhRows(arr){
+  if(!arr.length) return '<p class="help">—</p>';
+  return `<div class="tscroll"><table>${arr.map(h=>{ const I=hhInfo(h);
+    return `<tr><td>${h.cards.map(miniCard).join("")}<br><span class="help">${I.pos}${I.err?" · ⚠️ "+PRE_ERR[I.err][0].toLowerCase():""}</span></td>
+      <td>${h.board.length?h.board.map(miniCard).join(""):'<span class="help">pas de flop</span>'}</td>
+      <td class="r" style="color:${h.net>=0?"var(--acc)":"var(--bad)"}"><b>${h.net>=0?"+":""}${fr(I.netBB,1)} bb</b></td>
+      <td class="r"><button class="btn sec small" data-hhrev="${esc(h.id)}">Revoir</button></td></tr>`; }).join("")}</table></div>`;
+}
+function hhOppTable(list){
+  const O={};
+  for(const h of list){ const I=hhInfo(h); for(const [k,o] of Object.entries(I.opp)){ const name=h.seats[k][0]; const s=O[name]||(O[name]={n:0,vpip:0,pfr:0,pa:0,pc:0}); s.n++; s.vpip+=o.vpip; s.pfr+=o.pfr; s.pa+=o.pa; s.pc+=o.pc; } }
+  const arr=Object.entries(O).filter(([,s])=>s.n>=10).sort((a,b)=>b[1].n-a[1].n).slice(0,20);
+  if(!arr.length) return '<p class="help">Il faut au moins 10 mains avec un même joueur pour l\'analyser.</p>';
+  return `<p class="help">Style déduit de leurs mains. « Noter » crée ou met à jour sa fiche dans l'onglet Joueurs.</p><div class="tscroll"><table><tr><th>Joueur</th><th class="r">Mains</th><th class="r">VPIP</th><th class="r">PFR</th><th>Style</th><th></th></tr>
+    ${arr.map(([name,s])=>{ const st=hhStyle(s), prof=profileOf(st); return `<tr><td>${esc(name)}</td><td class="r">${s.n}</td><td class="r">${pc(s.vpip/s.n,0)}</td><td class="r">${pc(s.pfr/s.n,0)}</td><td>${prof[0]}</td><td class="r"><button class="btn sec small" data-hhnote="${esc(name)}">Noter</button></td></tr>`; }).join("")}</table></div>`;
+}
+function hhStyle(s){
+  const v=s.vpip/s.n*100, loose=v<15?1:v<22?2:v<30?3:v<40?4:5;
+  let aggr;
+  if(s.pa+s.pc>=8){ const a=s.pc?s.pa/s.pc:5; aggr=a<0.8?1:a<1.5?2:a<2.5?3:a<3.5?4:5; }
+  else { const r=s.vpip?s.pfr/s.vpip:0; aggr=r<0.3?1:r<0.5?2:r<0.7?3:r<0.85?4:5; }
+  return {loose,aggr};
+}
+function hhOppStats(name){
+  const s={n:0,vpip:0,pfr:0,pa:0,pc:0};
+  for(const h of hhHands){ const k=h.seats.findIndex(x=>x[0]===name); if(k<0||k===h.hero) continue; const o=hhInfo(h).opp[k]; if(!o) continue; s.n++; s.vpip+=o.vpip; s.pfr+=o.pfr; s.pa+=o.pa; s.pc+=o.pc; }
+  return s;
+}
+// envoie une main importée vers « Revoir une main »
+function hhToRv(h){
+  const I=hhInfo(h), V=I.villain, vpos=I.posAll[V], tt=I.tt;
+  const OP=tt===6?OPEN:OPEN9;
+  let range="tout";
+  if(V===I.threeBettor) range="QQ+, AKs, AKo, AQs, A5s, KQs";
+  else if(V===I.opener) range=OP[vpos]||OPEN.CO;
+  else if(vpos==="BB") range=FACING[0].raise+", "+FACING[0].call;
+  else if(OP[vpos]) range=OP[vpos];
+  const map={r:"raise",c:"call",f:"fold",x:"check",b:"bet"};
+  const preAct=I.f3Opp?map[I.act3]:I.heroFirst?map[I.heroFirst]:"check";
+  const r=newRv();
+  Object.assign(r,{table:tt,pos:I.pos,oppPos:vpos,hero:h.cards.slice(),opp:h.shows[V]?h.shows[V].slice():[-1,-1],range,
+    preSit:I.f3Opp?"3bet":(I.spot==="raised"||I.spot==="3bet+")?"raised":"open",preAct:preAct==="bet"?"raise":preAct});
+  r.board=[-1,-1,-1,-1,-1]; h.board.forEach((c,i)=>r.board[i]=c);
+  const v=villains.find(x=>x.name===h.seats[V][0]); r.villain=v?String(v.id):"";
+  for(let s=1;s<=3;s++){
+    const st=I.streets[s]; if(!st) continue;
+    const r2=x=>String(Math.round(x*100)/100);
+    r.streets[s-1]={pot:r2(I.potStart[s]||0),obet:st.face>0?r2(st.face):"",act:map[st.v]||"check",amt:st.v==="b"||st.v==="r"?r2(st.amt):""};
+  }
+  rv=r; saveRv(); renderRv(); goTab("rev"); window.scrollTo(0,0); rvAnalyze();
+}
+async function hhImport(texts){
+  let added=0, dup=0, autre=0, err=0; const ids=new Set(hhHands.map(h=>h.id));
+  for(const t of texts){ const r=hhParse(t); autre+=r.skip.autre; err+=r.skip.erreur;
+    for(const h of r.hands){ if(ids.has(h.id)) dup++; else { ids.add(h.id); hhHands.push(h); added++; } } }
+  hhHands.sort((a,b)=>a.ts-b.ts);
+  if(hhHands.length>4000) hhHands=hhHands.slice(-4000);
+  store.set("pgto_hh",hhHands);
+  let saved=true; try{ saved=JSON.parse(localStorage.getItem("pgto_hh")||"[]").length===hhHands.length; }catch(e){}
+  $("hhMsg").innerHTML=`<div class="rvi ${added?"rv-good":"rv-ok"}"><b>${added?"✅":"ℹ️"} ${added} nouvelle${added>1?"s":""} main${added>1?"s":""} importée${added>1?"s":""}</b>
+    ${dup?`<br><span class="help">${dup} main${dup>1?"s":""} déjà importée${dup>1?"s":""}, ignorée${dup>1?"s":""}.</span>`:""}
+    ${autre?`<br><span class="help">${autre} main${autre>1?"s":""} d'un autre jeu (Omaha…) ignorée${autre>1?"s":""}.</span>`:""}
+    ${err?`<br><span class="help">${err} main${err>1?"s":""} illisible${err>1?"s":""} (par exemple où tu n'avais pas de cartes).</span>`:""}
+    ${saved?"":'<br><span class="err">La mémoire de l\'appli est pleine : les mains les plus anciennes ne sont pas gardées.</span>'}
+    <br><span class="help">Total : ${hhHands.length} mains Hold'em.</span></div>`;
+  renderHH();
+}
+
 const num = id => Math.max(0,+$(id).value||0);
 function calcOdds(){
   const pot=num("oPot"), bet=num("oBet"), eq=Math.min(100,num("oEq"))/100;
@@ -1913,7 +2268,7 @@ function init(){
   const GROUPS={
     jouer:[["eq","🎯 Chances"],["pre","🃏 Préflop"],["odds","🧮 Cotes"]],
     tournoi:[["pf","⚡ Tapis ou fold"],["icm","🏆 ICM"]],
-    analyser:[["rev","🔍 Revoir une main"],["vil","👥 Joueurs"],["ses","📒 Sessions"]],
+    analyser:[["jeu","📈 Mon jeu"],["rev","🔍 Revoir une main"],["vil","👥 Joueurs"],["ses","📒 Sessions"]],
     apprendre:[["tr","🎓 Cours et exercices"]]
   };
   const groupOf=t=>Object.keys(GROUPS).find(g=>GROUPS[g].some(x=>x[0]===t))||"jouer";
@@ -1927,6 +2282,28 @@ function init(){
     store.set("pgto_tab",t);
     if(t==="tr"&&!trQ) newQ();
   };
+  goTab=showTab;
+  // mon jeu : import et analyse des historiques
+  $("hhPick").onclick=()=>$("hhFiles").click();
+  $("hhFiles").onchange=async e=>{ const fs=[...e.target.files]; if(!fs.length) return; $("hhMsg").innerHTML='<p class="help">Lecture des mains…</p>';
+    const texts=[]; for(const f of fs) texts.push(await f.text()); e.target.value=""; hhImport(texts); };
+  $("hhPasteBtn").onclick=()=>{ const t=$("hhPaste").value; if(t.trim()){ hhImport([t]); $("hhPaste").value=""; } };
+  $("hhClear").onclick=()=>{ if(!hhHands.length||!confirm(`Effacer les ${hhHands.length} mains importées ? (Tu pourras les réimporter depuis tes fichiers.)`)) return;
+    hhHands=[]; hhCache.clear(); store.set("pgto_hh",hhHands); $("hhMsg").innerHTML=""; renderHH(); };
+  document.addEventListener("change",e=>{
+    if(e.target.id==="hhFilter"){ store.set("pgto_hhfilter",e.target.value); renderHH(); }
+    if(e.target.id==="hhSort"){ store.set("pgto_hhsort",e.target.value); renderHH(); }
+  });
+  document.addEventListener("click",e=>{
+    const rb=e.target.closest("[data-hhrev]");
+    if(rb){ const h=hhHands.find(x=>x.id===rb.dataset.hhrev); if(h) hhToRv(h); return; }
+    const nb=e.target.closest("[data-hhnote]");
+    if(nb){ const name=nb.dataset.hhnote, s=hhOppStats(name), st=hhStyle(s);
+      let v=villains.find(x=>x.name===name);
+      if(!v){ v={id:Date.now(),name,desc:"",loose:3,aggr:3,notes:""}; villains.push(v); }
+      v.loose=st.loose; v.aggr=st.aggr; v.desc=`Stats importées : VPIP ${fr(s.vpip/s.n*100,0)} %, PFR ${fr(s.pfr/s.n*100,0)} % sur ${s.n} mains`;
+      curVillain=v.id; renderVillains(); renderRv(); nb.textContent="Noté ✅"; nb.disabled=true; }
+  });
   $("nav").addEventListener("click",e=>{ const b=e.target.closest("[data-t]"); if(b){ showTab(b.dataset.t); window.scrollTo(0,0); } });
   document.querySelectorAll("#mainnav button").forEach(b=>b.onclick=()=>{ const g=b.dataset.g; showTab(lastTab[g]||GROUPS[g][0][0]); window.scrollTo(0,0); });
   showTab(store.get("pgto_tab","eq"));
@@ -2151,7 +2528,7 @@ function init(){
     $("bnLater").onclick=()=>{ store.set("pgto_backup_snooze",now+7*DAY); b.remove(); };
   }
 
-  renderEq(); renderRv(); renderRvList(); renderVillains(); calcOdds(); calcBluff(); calcOuts(); calcSpr(); drawPre(); renderIcmRows(); calcIcm(); renderSessions();
+  renderEq(); renderRv(); renderRvList(); renderVillains(); renderHH(); calcOdds(); calcBluff(); calcOuts(); calcSpr(); drawPre(); renderIcmRows(); calcIcm(); renderSessions();
 
   // appli installable
   let deferred=null;

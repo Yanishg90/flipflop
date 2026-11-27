@@ -171,6 +171,16 @@ details ul{padding-left:20px;margin:6px 0}
     <div id="anal"><p class="help">Pose au moins le flop puis clique sur « Calculer » : tu verras tes outs, tes tirages et ce que l'adversaire peut avoir.</p></div>
    </div>
    <div class="card">
+    <h2>🕵️ Peut-il bluffer ?</h2>
+    <p class="help">Pose le flop (et le turn ou la river s'ils sont sortis) et règle l'adversaire plus haut. Flip&amp;Flop compte toutes ses mains possibles : celles qui sont fortes, et celles avec lesquelles il ne peut que bluffer.</p>
+    <div class="f"><label>Quel adversaire ?</label><select id="blOpp"></select></div>
+    <div class="f"><label>Son style de jeu</label><select id="blStyle" style="max-width:100%"></select></div>
+    <div class="f"><label>Pot avant sa mise</label><input type="number" id="blPot" value="100" min="0"></div>
+    <div class="f"><label>Sa mise (0 s'il n'a pas encore misé)</label><input type="number" id="blBet" value="66" min="0"></div>
+    <div class="row"><button class="btn" id="blRun">Analyser ses bluffs</button></div>
+    <div id="blOut"></div>
+   </div>
+   <div class="card">
     <h2>Ce que tu auras à la river</h2>
     <div id="dist"><p class="help">—</p></div>
    </div>
@@ -714,6 +724,9 @@ function renderEq(){
   $("oppBox").innerHTML=players.slice(1).map((_,i)=>playerHtml(i+1)).join("");
   $("boardSlots").innerHTML=board.map((c,i)=>slotHtml(c,"b"+i)+(i===2||i===3?'<div class="sep"></div>':"")).join("");
   $("addOpp").disabled=players.length>=9;
+  const bo=$("blOpp"), cur=bo.value;
+  bo.innerHTML=players.slice(1).map((_,i)=>`<option value="${i+1}">Adversaire ${i+1}</option>`).join("");
+  if(cur&&+cur<players.length) bo.value=cur;
 }
 function openPicker(k){
   pickTarget=k;
@@ -1134,7 +1147,7 @@ function villainStats(v){
 }
 function renderVillains(){ renderVList(); renderVDetail(); }
 function renderVList(){
-  saveVillains();
+  saveVillains(); refreshBlStyle();
   $("vList").innerHTML=villains.length?villains.map(v=>`<div class="opp" style="cursor:pointer;${curVillain===v.id?"outline:2px solid var(--acc)":""}" data-vsel="${v.id}">
     <b data-vsel="${v.id}">${esc(v.name)}</b> <span class="help" data-vsel="${v.id}">· ${profileOf(v)[0]}</span>${v.desc?`<br><span class="help" data-vsel="${v.id}">${esc(v.desc)}</span>`:""}</div>`).join("")
     :'<p class="help">Aucun joueur noté pour l\'instant.</p>';
@@ -1161,6 +1174,81 @@ function renderVDetail(){
       :'<p class="help">Aucune main encore. Dans « Revoir une main », choisis ce joueur comme adversaire puis enregistre la main.</p>'}
     <div class="row"><button class="btn sec small" id="vDel">Supprimer ce joueur</button></div>`;
 }
+/* ===================================================================
+   PEUT-IL BLUFFER ? (composition de la range adverse sur le tableau)
+=================================================================== */
+// [clé, nom, fréquence de mise avec ses mains fortes, fréquence de bluff]
+const BL_STYLES=[["moyen","Inconnu / joueur moyen",0.85,0.35],["roc","🪨 Le Roc (serré, passif)",0.9,0.08],
+  ["station","🐟 La Station (paie tout)",0.55,0.12],["mani","🔥 Le Maniaque (très agressif)",0.95,0.75],["reg","🎯 Le Régulier (joue GTO)",0.85,null]];
+function blStyleOpts(){
+  return BL_STYLES.map(s=>`<option value="${s[0]}">${s[1]}</option>`).join("")
+    +(villains.length?`<optgroup label="Mes joueurs notés">${villains.map(v=>`<option value="v${v.id}">${esc(v.name)} — ${profileOf(v)[0]}</option>`).join("")}</optgroup>`:"");
+}
+function refreshBlStyle(){ const s=$("blStyle"); if(!s) return; const cv=s.value; s.innerHTML=blStyleOpts(); if(cv&&[...s.options].some(o=>o.value===cv)) s.value=cv; }
+const BL_TYPES={value:["💪 Mains fortes","il mise pour gagner de l'argent"],medium:["🤏 Mains moyennes","petites paires : il préfère souvent checker"],
+  draw:["🎣 Tirages","il peut miser en semi-bluff"],air:["💨 Rien du tout","il ne peut gagner qu'en bluffant"]};
+function classifyCombo(cb,bk,boardCat,topB,bdBoard){
+  const all=[cb[0],cb[1],...bk], s=evalArr(all), c=s>>20;
+  if(c>boardCat){
+    if(c===1) return ((s>>12)&15)>=topB?"value":"medium";          // top paire / paire servie = forte
+    if(c===2&&boardCat===1){ const bp=(evalArr(bk)>>12)&15, p1=(s>>8)&15, p2=(s>>4)&15, his=p1===bp?p2:p1; return his>=topB?"value":"medium"; }
+    return "value";
+  }
+  if(bk.length<5){ const d=draws(all); if((d.fd&&!bdBoard.fd)||d.sd>bdBoard.sd) return "draw"; }
+  return "air";
+}
+function analyzeBluffs(){
+  const out=$("blOut"), err=m=>{ out.innerHTML=`<p class="err">${m}</p>`; };
+  const bk=board.filter(c=>c>=0);
+  if(bk.length<3) return err("Pose d'abord au moins le flop (3 cartes) dans « Le tableau ».");
+  const k=+$("blOpp").value||1, p=players[k];
+  if(!p) return err("Ajoute un adversaire.");
+  if(p.type==="cards") return err("Tu as mis ses cartes précises : tu sais déjà s'il bluffe ! Choisis « Range » ou « Main au hasard » pour cet adversaire.");
+  let set=null;
+  if(p.type==="range"){ const r=parseRange(p.range); if(r.bad.length||!r.set.size) return err("La range de cet adversaire n'est pas valide."); set=r.set; }
+  const dead=new Set(bk);
+  players.forEach(q=>{ if(q.type==="cards") q.cards.forEach(c=>{ if(c>=0) dead.add(c); }); });
+  const combos=(set?[].concat(...[...set].map(combosOf)):ALL_COMBOS).filter(cb=>!dead.has(cb[0])&&!dead.has(cb[1]));
+  if(!combos.length) return err("Aucune main de sa range n'est possible avec ces cartes.");
+  const bs=evalArr(bk), boardCat=bs>>20, bdBoard=draws(bk);
+  const rc={}; bk.forEach(c=>rc[c>>2]=(rc[c>>2]||0)+1);
+  const unpaired=bk.map(c=>c>>2).filter(r=>rc[r]===1);
+  const topB=unpaired.length?Math.max(...unpaired):Math.max(...bk.map(c=>c>>2));
+  const cnt={value:0,medium:0,draw:0,air:0}, ex={draw:{},air:{},value:{}};
+  for(const cb of combos){
+    const t=classifyCombo(cb,bk,boardCat,topB,bdBoard); cnt[t]++;
+    if(ex[t]){ const cl=classOf(cb[0],cb[1]); ex[t][cl]=(ex[t][cl]||0)+1; }
+  }
+  const N=combos.length, V=cnt.value, B=cnt.draw+cnt.air;
+  const top=o=>Object.entries(o).sort((a,b)=>b[1]-a[1]).slice(0,6).map(x=>x[0]).join(", ");
+  // style
+  const sv=$("blStyle").value; let vF,bF,gto=false,styleName;
+  if(sv[0]==="v"){ const v=villains.find(x=>"v"+x.id===sv); vF=v&&v.aggr<=2?0.6:0.9; bF=[0,0.08,0.18,0.35,0.55,0.75][v?v.aggr:3]; styleName=v?v.name:"?"; }
+  else { const s=BL_STYLES.find(x=>x[0]===sv)||BL_STYLES[0]; vF=s[2]; bF=s[3]; gto=bF===null; styleName=s[1]; }
+  const pot=num("blPot"), bet=num("blBet"), g=bet>0&&pot>0?bet/(pot+2*bet):null, m=(V+B)?B/(V+B):0;
+  let P;
+  if(gto) P=g!==null?Math.min(m,g):null;
+  else { const wb=cnt.draw*Math.min(1,bF*1.4)+cnt.air*bF*0.8, wv=V*vF; P=(wb+wv)?wb/(wb+wv):0; }
+  let h=`<h3>Ses mains possibles sur ce tableau (${N} combinaisons)</h3><table>`;
+  for(const t of ["value","medium","draw","air"]) h+=`<tr><td>${BL_TYPES[t][0]}<br><span class="help">${BL_TYPES[t][1]}</span><div class="bar"><i style="width:${cnt[t]/N*100}%;${t==="draw"||t==="air"?"background:var(--acc2)":""}"></i></div></td><td class="r"><b>${pc(cnt[t]/N)}</b></td></tr>`;
+  h+=`</table><p>Bluffs possibles : <b>${pc(B/N)}</b> de ses mains. ${V?`Pour 1 main forte, il a <b>${fr(B/V,1)}</b> main${B/V>=2?"s":""} de bluff possible${B/V>=2?"s":""}.`:"Il n'a presque aucune main forte ici."}</p>`;
+  if(V) h+=`<p class="help">Ses mains fortes, par exemple : ${top(ex.value)}</p>`;
+  if(cnt.draw) h+=`<p class="help">Ses tirages, par exemple : ${top(ex.draw)}</p>`;
+  if(cnt.air) h+=`<p class="help">Ses mains « rien du tout », par exemple : ${top(ex.air)}</p>`;
+  if(g!==null){
+    h+=`<div class="kpi">
+      <div><small>Bluffs idéaux (GTO) pour cette mise</small><b>${pc(g)}</b><small>part de bluffs d'un joueur parfait à la river</small></div>
+      <div><small>Bluffs maximum possibles</small><b>${pc(m)}</b><small>s'il misait avec tous ses bluffs</small></div>
+      <div><small>Chances qu'il bluffe</small><b style="color:var(--acc2)">${P!==null?pc(P):"—"}</b><small>estimation selon son style</small></div></div>`;
+    h+=m<g
+      ?`<div class="verdict no">❗ Sur ce tableau, il a <b>peu de bluffs possibles</b> : même en bluffant avec tout, il bluffe moins qu'un joueur parfait. Quand il mise, c'est souvent une vraie main.</div>`
+      :`<div class="verdict ok">✅ Il a <b>largement de quoi bluffer</b> sur ce tableau : sa mise peut très bien être un bluff.</div>`;
+    h+=`<p style="margin-top:12px">Si ta main bat seulement ses bluffs, payer est rentable s'il bluffe <b>plus de ${pc(g)}</b> du temps. Estimation pour « ${esc(styleName)} » : <b>${pc(P)}</b> → ${Math.abs(P-g)<0.02?"⚖️ <b>c'est pareil</b> : payer ou se coucher rapporte autant à long terme":P>g?"✅ <b>payer est rentable</b>":"❌ <b>mieux vaut se coucher</b>"}.</p>`;
+  } else h+=`<p class="help">Indique sa mise pour savoir s'il bluffe probablement et si tu dois payer.</p>`;
+  h+=`<p class="note">Estimation : on suppose qu'il mise avec la plupart de ses mains fortes, qu'il checke ses mains moyennes et qu'il bluffe plus souvent avec ses tirages qu'avec rien du tout. Tes cartes et celles du tableau sont retirées de ses mains possibles.${bk.length<5?" Au flop et au turn, un joueur parfait bluffe un peu plus que le chiffre GTO, car ses tirages peuvent encore gagner.":""}</p>`;
+  out.innerHTML=h;
+}
+
 const num = id => Math.max(0,+$(id).value||0);
 function calcOdds(){
   const pot=num("oPot"), bet=num("oBet"), eq=Math.min(100,num("oEq"))/100;
@@ -1582,6 +1670,8 @@ function init(){
   $("reset").onclick=()=>{ players=[newPlayer("cards"),newPlayer("random")]; board=[-1,-1,-1,-1,-1]; saveEq(); renderEq();
     $("out").innerHTML='<p class="help">Choisis tes cartes puis clique sur « Calculer ».</p>'; $("dist").innerHTML='<p class="help">—</p>'; analysis([], []); };
   $("run").onclick=runSim;
+  $("blStyle").innerHTML=blStyleOpts();
+  $("blRun").onclick=analyzeBluffs;
   const gm=$("gmGrid");
   gm.addEventListener("pointerdown",e=>{ const d=e.target.closest("[data-l]"); if(!d) return; dragMode=gridSet.has(d.dataset.l)?"del":"add"; toggleCell(d); e.preventDefault(); });
   gm.addEventListener("pointermove",e=>{ if(!dragMode) return; const el=document.elementFromPoint(e.clientX,e.clientY); const d=el&&el.closest("#gmGrid [data-l]"); if(d) toggleCell(d); });

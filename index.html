@@ -2431,6 +2431,119 @@ function solveRiverW(board,Oin,Iin,P,B,iters=1500){
   const avg=R=>Array.from(R.s,(x,i)=>R.w[i]>0?x/R.w[i]:0.5);
   return {O,I,bet:avg(A),callD:avg(D),callB:avg(Bn),betC:avg(C),P,B};
 }
+// ---- turn : vrai équilibre sur deux tours de mise (turn puis river), toutes les rivers calculées ----
+// O = parle en premier, I = parle en second. Une taille de mise par tour, sans relance (comme le solveur de river).
+function solveTurn2(board,O,I,P,f1,f2,S,iters=200){
+  const nO=O.length, nI=I.length, wO=O.map(h=>h.w), wI=I.map(h=>h.w), used=new Set(board), rivers=[];
+  for(let c=0;c<52;c++) if(!used.has(c)) rivers.push(c);
+  const NR=rivers.length-2, B1=Math.min(f1*P,S);
+  const RV=rivers.map(r=>{
+    const sO=new Int32Array(nO), sI=new Int32Array(nI);
+    O.forEach((h,i)=>sO[i]=h.c[0]===r||h.c[1]===r?-1:evalArr([h.c[0],h.c[1],...board,r]));
+    I.forEach((h,j)=>sI[j]=h.c[0]===r||h.c[1]===r?-1:evalArr([h.c[0],h.c[1],...board,r]));
+    const oO=[...Array(nO).keys()].filter(i=>sO[i]>=0).sort((x,y)=>sO[x]-sO[y]), oI=[...Array(nI).keys()].filter(j=>sI[j]>=0).sort((x,y)=>sI[x]-sI[y]);
+    return {sO,sI,oO,oI,T:[0,1,2].map(()=>({A:mkR(nO),D:mkR(nO),Bn:mkR(nI),C:mkR(nI)}))};
+  });
+  function mkR(n){ return {r0:new Float64Array(n),r1:new Float64Array(n),s:new Float64Array(n),w:new Float64Array(n)}; }
+  const pr=(R,i)=>{ const x=Math.max(R.r0[i],0), y=Math.max(R.r1[i],0); return x+y>0?y/(x+y):0.5; };
+  const upd=(R,i,v0,v1,p,reach,t)=>{ const v=(1-p)*v0+p*v1; R.r0[i]=Math.max(0,R.r0[i]+v0-v); R.r1[i]=Math.max(0,R.r1[i]+v1-v); R.s[i]+=reach*p*t; R.w[i]+=reach*t; };
+  // tableaux de travail réutilisés (beaucoup plus rapide que d'en recréer à chaque calcul)
+  const buf=n=>({W:new Float64Array(n),T:new Float64Array(n),L:new Float64Array(n)});
+  const gO=[buf(nO),buf(nO),buf(nO)], gI=[buf(nI),buf(nI),buf(nI)];
+  const pA=new Float64Array(nO), pD=new Float64Array(nO), pB=new Float64Array(nI), pC=new Float64Array(nI);
+  const wB=new Float64Array(nI), wX=new Float64Array(nI), wCb=new Float64Array(nI), rB=new Float64Array(nO), rC=new Float64Array(nO), rCD=new Float64Array(nO);
+  const agg=(ownO,ownS,oppO,oppS,wv,g)=>{ const {W,T,L}=g, m=oppO.length; let tot=0; for(let q=0;q<m;q++) tot+=wv[oppO[q]];
+    let j=0, below=0; for(let q=0;q<ownO.length;q++){ const i=ownO[q], s=ownS[i]; while(j<m&&oppS[oppO[j]]<s){ below+=wv[oppO[j]]; j++; } let k=j, eq=0; while(k<m&&oppS[oppO[k]]===s){ eq+=wv[oppO[k]]; k++; } W[i]=below; T[i]=eq; L[i]=tot-below-eq; } return g; };
+  // une itération sur une river : met à jour les regrets de la river et renvoie les valeurs de chaque main
+  function riverStep(R,X,wo,wi,P2,B2,t,vO,vI){
+    const {sO,sI,oO,oI}=R;
+    if(B2<=1e-9){ const a=agg(oO,sO,oI,sI,wi,gO[0]), b=agg(oI,sI,oO,sO,wo,gI[0]);
+      for(const i of oO) vO[i]+=P2*a.W[i]+P2/2*a.T[i]; for(const j of oI) vI[j]+=P2*b.W[j]+P2/2*b.T[j]; return; }
+    const sdB=(g,i)=>(P2+B2)*g.W[i]-B2*g.L[i]+P2/2*g.T[i], sdC=(g,i)=>P2*g.W[i]+P2/2*g.T[i];
+    for(const i of oO){ pA[i]=pr(X.A,i); pD[i]=pr(X.D,i); } for(const j of oI){ pB[j]=pr(X.Bn,j); pC[j]=pr(X.C,j); }
+    let foldB=0;
+    for(const j of oI){ wB[j]=wi[j]*pB[j]; foldB+=wi[j]-wB[j]; wX[j]=wi[j]*(1-pC[j]); wCb[j]=wi[j]*pC[j]; }
+    const aB=agg(oO,sO,oI,sI,wB,gO[0]), aX=agg(oO,sO,oI,sI,wX,gO[1]), aCb=agg(oO,sO,oI,sI,wCb,gO[2]);
+    for(const i of oO){ const vBet=P2*foldB+sdB(aB,i), vCD=sdB(aCb,i), vChk=sdC(aX,i)+pD[i]*vCD;
+      vO[i]+=(1-pA[i])*vChk+pA[i]*vBet; upd(X.A,i,vChk,vBet,pA[i],wo[i],t); upd(X.D,i,0,vCD,pD[i],wo[i]*(1-pA[i]),t); }
+    let rCF=0;
+    for(const i of oO){ rB[i]=wo[i]*pA[i]; rC[i]=wo[i]-rB[i]; rCD[i]=rC[i]*pD[i]; rCF+=rC[i]-rCD[i]; }
+    const bB=agg(oI,sI,oO,sO,rB,gI[0]), bX=agg(oI,sI,oO,sO,rC,gI[1]), bCD=agg(oI,sI,oO,sO,rCD,gI[2]);
+    for(const j of oI){ const vCB=sdB(bB,j), vXC=sdC(bX,j), vBC=P2*rCF+sdB(bCD,j);
+      vI[j]+=pB[j]*vCB+(1-pC[j])*vXC+pC[j]*vBC; upd(X.Bn,j,0,vCB,pB[j],wi[j],t); upd(X.C,j,vXC,vBC,pC[j],wi[j],t); }
+  }
+  const A=mkR(nO), D=mkR(nO), Bn=mkR(nI), C=mkR(nI);
+  let t=0;
+  // le calcul avance par petits morceaux (step) pour ne pas bloquer l'écran
+  const step=k=>{ for(const end=t+k;t<end;){ t++;
+    const tA=O.map((_,i)=>pr(A,i)), tD=O.map((_,i)=>pr(D,i)), tB=I.map((_,j)=>pr(Bn,j)), tC=I.map((_,j)=>pr(C,j));
+    const lines=[ // check-check / mise-payée / check-mise-payée
+      {wo:wO.map((w,i)=>w*(1-tA[i])), wi:wI.map((w,j)=>w*(1-tC[j])), P2:P, rem:S},
+      {wo:wO.map((w,i)=>w*tA[i]), wi:wI.map((w,j)=>w*tB[j]), P2:P+2*B1, rem:S-B1},
+      {wo:wO.map((w,i)=>w*(1-tA[i])*tD[i]), wi:wI.map((w,j)=>w*tC[j]), P2:P+2*B1, rem:S-B1}];
+    const vO=lines.map(()=>new Float64Array(nO)), vI=lines.map(()=>new Float64Array(nI));
+    RV.forEach(R=>lines.forEach((L,k)=>riverStep(R,R.T[k],L.wo,L.wi,L.P2,Math.min(f2*L.P2,L.rem),t,vO[k],vI[k])));
+    let callW=0,betCW=0,foldW=0,oBet=0,oChkCall=0,oChkFold=0;
+    for(let j=0;j<nI;j++){ callW+=wI[j]*tB[j]; foldW+=wI[j]*(1-tB[j]); betCW+=wI[j]*tC[j]; }
+    for(let i=0;i<nO;i++){ oBet+=wO[i]*tA[i]; oChkCall+=wO[i]*(1-tA[i])*tD[i]; oChkFold+=wO[i]*(1-tA[i])*(1-tD[i]); }
+    for(let i=0;i<nO;i++){
+      const v1=vO[0][i]/NR, v2=vO[1][i]/NR, v3=vO[2][i]/NR;
+      const vBet=P*foldW+v2-B1*callW, vCD=v3-B1*betCW, vChk=v1+tD[i]*vCD;
+      upd(A,i,vChk,vBet,tA[i],wO[i],t); upd(D,i,0,vCD,tD[i],wO[i]*(1-tA[i]),t);
+    }
+    for(let j=0;j<nI;j++){
+      const v1=vI[0][j]/NR, v2=vI[1][j]/NR, v3=vI[2][j]/NR;
+      const vCB=v2-B1*oBet, vXC=v1, vBC=P*oChkFold+v3-B1*oChkCall;
+      upd(Bn,j,0,vCB,tB[j],wI[j],t); upd(C,j,vXC,vBC,tC[j],wI[j],t);
+    }
+  } };
+  const avg=R=>Array.from(R.s,(x,i)=>R.w[i]>0?x/R.w[i]:0.5);
+  if(iters){ step(iters); }
+  return {step, done:()=>t, res:()=>({O,I,bet:avg(A),callD:avg(D),callB:avg(Bn),betC:avg(C),P,B:B1})};
+}
+let streetTok=0;
+function streetGTO(bk,setH,setV){
+  const box=$("svStreet"); if(!box) return;
+  const heroO=solv.oop==="1", bset=new Set(bk), H=solv.hero.every(c=>c>=0)&&!solv.hero.some(c=>bset.has(c))?solv.hero:null;
+  const mk=set=>{ const hs=[]; set.forEach(cl=>combosOf(cl).forEach(cb=>{ if(!bset.has(cb[0])&&!bset.has(cb[1])) hs.push({c:cb,cl,w:1}); })); return hs; };
+  const LH=mk(setH), LV=mk(setV);
+  if(H&&!LH.some(x=>(x.c[0]===H[0]&&x.c[1]===H[1])||(x.c[0]===H[1]&&x.c[1]===H[0]))) LH.push({c:H.slice(),cl:classOf(H[0],H[1]),w:1});
+  if(!LH.length||!LV.length){ box.innerHTML=""; return; }
+  const P=+solv.pot||100, St=+solv.stack||0, B=solv.size==="allin"?(St||P):Math.min(St||Infinity,P*(+solv.size));
+  const O=heroO?LH:LV, I=heroO?LV:LH, t0=Date.now(), tok=++streetTok;
+  const f=B/P, sol=solveTurn2(bk,O,I,P,f,f,St||P*10,0), target=O.length+I.length>900?120:180;
+  const tick=()=>{
+    if(tok!==streetTok||!document.body.contains(box)) return; // un autre calcul a été lancé
+    sol.step(3); const d=sol.done();
+    if(d<target&&Date.now()-t0<30000){ box.innerHTML=`<p class="help">🧠 Calcul GTO de la turn et de la river… <b>${Math.round(d/target*100)} %</b></p><div style="height:6px;background:var(--line,#2a3a30);border-radius:3px"><div style="height:6px;width:${Math.round(d/target*100)}%;background:var(--acc);border-radius:3px"></div></div>`; setTimeout(tick,0); }
+    else streetShow(box,sol.res(),Date.now()-t0,heroO,H,B,P,bk);
+  };
+  tick();
+}
+function streetShow(box,res,ms,heroO,H,B,P,bk){
+  const mean=a=>a.reduce((x,y)=>x+y,0)/a.length, who=x=>x?"Toi":"Lui";
+  const oCall=(()=>{ let s=0,t=0; res.callD.forEach((x,k)=>{ const w=1-res.bet[k]; s+=x*w; t+=w; }); return t?s/t:0; })();
+  let h=`<h3>🧠 Calcul GTO de ce tour</h3>
+    <p class="help">Mise étudiée : <b>${fmtAmt(B)}</b> dans un pot de <b>${fmtAmt(P)}</b> (${fr(B/P*100,0)} % du pot), puis la même taille à la river · calcul en ${(ms/1000).toFixed(1).replace(".",",")} s.</p>
+    <table><tr><td>${who(heroO)} (parle en premier) : <b>mise</b></td><td class="r"><b>${pc(mean(res.bet),0)}</b> de ses mains</td></tr>
+    <tr><td>${who(!heroO)} face à cette mise : <b>paie</b></td><td class="r"><b>${pc(mean(res.callB),0)}</b></td></tr>
+    <tr><td>${who(!heroO)} après un check : <b>mise</b></td><td class="r"><b>${pc(mean(res.betC),0)}</b></td></tr>
+    <tr><td>${who(heroO)} face à cette mise : <b>paie</b></td><td class="r"><b>${pc(oCall,0)}</b></td></tr></table>`;
+  if(H){
+    const list=heroO?res.O:res.I, k=list.findIndex(x=>(x.c[0]===H[0]&&x.c[1]===H[1])||(x.c[0]===H[1]&&x.c[1]===H[0]));
+    const mix=(p,a,b)=>p>0.97?`<b>${a}</b> (toujours)`:p<0.03?`<b>${b}</b> (toujours)`:`<b>${a}</b> ${pc(p,0)} du temps, <b>${b}</b> le reste`;
+    if(k>=0) h+=heroO?`<p>👉 Avec ${H.map(miniCard).join("")}, en premier : ${mix(res.bet[k],"miser","checker")}.<br>👉 Si tu checkes et qu'il mise : ${mix(res.callD[k],"payer","te coucher")}.</p>`
+      :`<p>👉 Avec ${H.map(miniCard).join("")}, s'il mise : ${mix(res.callB[k],"payer","te coucher")}.<br>👉 S'il checke : ${mix(res.betC[k],"miser","checker")}.</p>`;
+  }
+  h+=heroO?`<p class="help" style="margin-top:8px">Ta range : quand miser en premier</p><div class="rg ro" id="svG1"></div><p class="help">Ta range : payer après avoir checké</p><div class="rg ro" id="svG2"></div>`
+    :`<p class="help" style="margin-top:8px">Ta range : payer sa mise</p><div class="rg ro" id="svG1"></div><p class="help">Ta range : miser quand il checke</p><div class="rg ro" id="svG2"></div>`;
+  h+=`<p class="note">Vrai calcul d'équilibre sur deux tours de mise : la turn, puis chacune des ${46} rivers possibles. Simplification : une seule taille de mise par tour (${fr(B/P*100,0)} % du pot), sans relance. C'est le même type de calcul que les solveurs professionnels, en plus simple.</p>`;
+  box.innerHTML=h;
+  const grid=(list,f)=>{ const g={}; list.forEach((x,k)=>{ const e=g[x.cl]||(g[x.cl]={s:0,n:0}); e.s+=f[k]; e.n++; }); return g; };
+  const cell=(g,col)=>l=>{ const e=g[l]; return e?{style:freqStyle(e.s/e.n,col)}:{style:"opacity:.2"}; };
+  if(heroO){ drawGrid($("svG1"),cell(grid(res.O,res.bet),"var(--acc)")); drawGrid($("svG2"),cell(grid(res.O,res.callD),"var(--acc2)")); }
+  else { drawGrid($("svG1"),cell(grid(res.I,res.callB),"var(--acc2)")); drawGrid($("svG2"),cell(grid(res.I,res.betC),"var(--acc)")); }
+}
 // meilleure réponse d'une main précise (même hors de la range) face à la stratégie calculée
 function riverBest(res,cards,board,isO){
   const s=evalArr([...cards,...board]), {O,I,P,B}=res, bset=new Set(cards);
@@ -2537,8 +2650,9 @@ function adviseFlopTurn(bk){
       <p>Tu as <b>${nm}</b>, avec <b>${eq!==null?pctTxt(eq):"—"}</b> de chances contre toute sa range.<br>👉 ${a}</p>
       ${heroPfa?"":`<p class="help">Face à une mise de ${fr(B/P*100,0)} % du pot, il te faut ${pctTxt(need)} de chances pour payer.</p>`}`;
   } else h+='<p class="help">Mets tes 2 cartes plus haut pour un conseil sur ta main.</p>';
-  h+=`<p class="note">Conseils inspirés des grandes tendances des solveurs (avantage de range, avantage en mains fortes, texture du tableau). Ce n'est pas un calcul complet comme à la river : au flop et au turn, il y a trop de cartes à venir pour tout calculer sur un téléphone.</p>`;
-  out.innerHTML=h;
+  h+=`<p class="note">Ces tendances viennent des grandes règles des solveurs (avantage de range, mains fortes, texture du tableau). Le calcul GTO juste en dessous les vérifie sur ta situation exacte.</p>`;
+  if(turn){ out.innerHTML=h+'<div id="svStreet" style="margin-top:12px"><p class="help">🧠 Calcul GTO de la turn et de la river en cours… (quelques secondes)</p></div>'; setTimeout(()=>streetGTO(bk,rH.set,rV.set),30); }
+  else out.innerHTML=h+'<p class="note">Au flop, un calcul GTO complet (flop, turn et river) demande trop de calcul pour un téléphone : ce sont donc des tendances. Ajoute la carte de la turn pour un vrai calcul d\'équilibre.</p>';
 }
 
 let solv=Object.assign({board:[-1,-1,-1,-1,-1],hero:[-1,-1],oop:"0",pfa:"hero",rH:OPEN.BTN,rV:FACING[0].call,pot:"100",stack:"300",size:"0.75"},store.get("pgto_solv",{}));

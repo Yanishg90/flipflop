@@ -622,6 +622,14 @@ details ul{padding-left:20px;margin:6px 0}
    <h3>💾 Sauvegarde de toutes mes données</h3>
    <p class="help">Un seul fichier avec tout : tes parties, tes joueurs notés, tes mains revues, tes mains importées et tes scores. Fais-le avant de réinstaller l'appli, ou pour passer de l'ordi au téléphone : « Sauvegarder » sur l'un, puis « Récupérer » le fichier sur l'autre. Rien n'est effacé : ce qui existe déjà est gardé.</p>
    <div class="row"><button class="btn sec small" id="sExp">Sauvegarder</button><button class="btn sec small" id="sImpB">Récupérer une sauvegarde</button><input type="file" id="sImp" accept=".json,application/json" hidden></div>
+   <h3>📲 Passer de l'ordi au téléphone (sans compte)</h3>
+   <div class="row"><button class="btn small" id="sShare">📲 Envoyer vers mon autre appareil</button></div>
+   <details><summary>Comment faire, étape par étape</summary>
+    <p class="help">1. Sur l'appareil qui a les données (par exemple l'ordi), touche « 📲 Envoyer vers mon autre appareil ».<br>
+    2. Choisis comment l'envoyer : un mail à toi-même, WhatsApp (« Moi » ou ton propre numéro), Google Drive ou OneDrive. Si aucun choix n'apparaît, le fichier est simplement enregistré dans tes Téléchargements : envoie-le-toi par mail.<br>
+    3. Sur l'autre appareil (par exemple le téléphone), enregistre le fichier reçu, ouvre Flip&amp;Flop → Analyser → Sessions → « Récupérer une sauvegarde », et choisis ce fichier.<br>
+    4. C'est tout : les données des deux appareils sont additionnées, rien n'est effacé. Refais-le dans l'autre sens si tu veux que l'ordi reçoive aussi ce que tu as fait sur le téléphone.</p>
+   </details>
   </div>
   <div class="col">
    <div class="card"><h2>Bilan</h2><div class="kpi" id="sKpi"></div><div id="sChart" style="margin-top:12px"></div></div>
@@ -3467,6 +3475,17 @@ function init(){
     const a=document.createElement("a");
     a.href=URL.createObjectURL(new Blob([JSON.stringify(backup)],{type:"application/json"}));
     a.download="flipflop-sauvegarde-"+today()+".json"; a.click();
+  };
+  // envoyer la sauvegarde vers l'autre appareil (partage du téléphone / de l'ordi), sinon simple téléchargement
+  $("sShare").onclick=async()=>{
+    const backup={app:"flipflop",version:2,date:today(),sessions,villains,hands:rvList,scores:trScore,imported:hhHands,results:hhSums};
+    const name="flipflop-sauvegarde-"+today()+".json", file=new File([JSON.stringify(backup)],name,{type:"application/json"});
+    store.set("pgto_lastbackup",Date.now()); const bn=$("backupBanner"); if(bn) bn.remove();
+    try{
+      if(navigator.canShare&&navigator.canShare({files:[file]})){ await navigator.share({files:[file],title:"Sauvegarde Flip&Flop",text:"Mes données Flip&Flop : à ouvrir dans l'appli, Sessions → Récupérer une sauvegarde."}); return; }
+    }catch(e){ if(e&&e.name==="AbortError") return; }
+    const a=document.createElement("a"); a.href=URL.createObjectURL(file); a.download=name; a.click();
+    alert("Le fichier « "+name+" » est dans tes Téléchargements. Envoie-le-toi par mail (ou WhatsApp), puis ouvre-le sur l'autre appareil avec « Récupérer une sauvegarde ».");
   };
   $("sImpB").onclick=()=>$("sImp").click();
   $("sImp").onchange=e=>{

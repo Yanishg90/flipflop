@@ -128,6 +128,7 @@ svg text{fill:var(--mute);font-size:11px}
 .rp-fold{opacity:.38}.rp-act{outline:2px solid var(--acc2)}.rp-me{border:1px solid var(--acc)}
 .rp-st,.rp-bet{text-align:right}.rp-bet{color:var(--acc2);font-weight:700}
 @media(max-width:420px){.rp-row{grid-template-columns:38px minmax(0,1fr) auto 62px 48px;font-size:12.5px;gap:4px;padding:5px 6px}}
+.foot-warn{margin:28px 0 0;padding:12px 4px;border-top:1px solid var(--line);color:var(--mute);font-size:12.5px;text-align:center}
 .warn{background:#3a1416;border:1px solid var(--bad);border-radius:10px;padding:8px 12px;font-size:13.5px;margin:0 0 12px}
 .banner{background:#3a3010;border:1px solid var(--acc2);border-radius:10px;padding:10px 12px;margin-bottom:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .banner span{flex:1 1 220px}
@@ -163,7 +164,6 @@ details ul{padding-left:20px;margin:6px 0}
 <main>
 <!-- ================= CHANCES ================= -->
 <section id="t-eq" class="tab">
- <p class="warn">⚠️ <b>Outil d'étude</b> : utilise-le avant ou après tes parties, <b>jamais pendant une partie en ligne</b>. Winamax interdit les calculateurs (chances, ICM, ranges) pendant le jeu : tu risquerais la fermeture de ton compte.</p>
  <p class="intro">Tes chances de gagner la main, contre une ou plusieurs mains adverses, à n'importe quel moment du coup.</p>
  <div class="grid2">
   <div class="col">
@@ -281,7 +281,6 @@ details ul{padding-left:20px;margin:6px 0}
 
 <!-- ================= MON JEU (historiques importés) ================= -->
 <section id="t-jeu" class="tab">
- <p class="warn">⚠️ Importe tes mains <b>après</b> tes sessions. Ferme Flip&amp;Flop pendant que tu joues sur Winamax : son règlement interdit les calculateurs pendant le jeu.</p>
  <p class="intro">Importe tes historiques de mains Winamax (ou PokerStars) : Flip&amp;Flop analyse toutes tes mains d'un coup, calcule tes statistiques et trouve tes erreurs. Tout reste sur ton appareil.</p>
  <div class="card">
   <h2>📥 Importer mes mains</h2>
@@ -322,7 +321,6 @@ details ul{padding-left:20px;margin:6px 0}
 
 <!-- ================= SOLVEUR RIVER ================= -->
 <section id="t-solv" class="tab">
- <p class="warn">⚠️ <b>Outil d'étude</b> : utilise-le avant ou après tes parties, <b>jamais pendant une partie en ligne</b> (les solveurs sont interdits pendant le jeu).</p>
  <p class="intro">Le vrai calcul GTO à la river : Flip&amp;Flop cherche l'équilibre entre ta range et la sienne, et te dit quand miser, checker, payer ou te coucher, main par main.</p>
  <div class="grid2"><div class="col">
   <div class="card"><h2>1. Le tableau (les 5 cartes)</h2>
@@ -446,7 +444,6 @@ details ul{padding-left:20px;margin:6px 0}
 
 <!-- ================= TAPIS OU FOLD ================= -->
 <section id="t-pf" class="tab">
- <p class="warn">⚠️ <b>Outil d'étude</b> : utilise-le avant ou après tes parties, <b>jamais pendant une partie en ligne</b>. Winamax interdit les calculateurs (chances, ICM, ranges) pendant le jeu : tu risquerais la fermeture de ton compte.</p>
  <p class="intro">Fin de tournoi, petit tapis : quand faire tapis, et quand payer un tapis. <button class="q" data-q="nash" aria-label="Explication">?</button> Depuis la petite blinde, c'est le <b>vrai équilibre GTO</b> (équilibre de Nash). Depuis les autres places, c'est une très bonne approximation.</p>
  <div class="card">
   <div class="f"><label>Ta place (personne n'a joué avant toi)</label><select id="pfSeat"></select></div>
@@ -470,7 +467,6 @@ details ul{padding-left:20px;margin:6px 0}
 
 <!-- ================= ICM ================= -->
 <section id="t-icm" class="tab">
- <p class="warn">⚠️ <b>Outil d'étude</b> : utilise-le avant ou après tes parties, <b>jamais pendant une partie en ligne</b>. Winamax interdit les calculateurs (chances, ICM, ranges) pendant le jeu : tu risquerais la fermeture de ton compte.</p>
  <p class="intro">En tournoi, tes jetons ne valent pas leur poids en euros. L'ICM calcule ce que vaut vraiment ton tapis en argent, selon les prix à gagner.</p>
  <div class="grid2">
   <div class="card">
@@ -605,6 +601,7 @@ details ul{padding-left:20px;margin:6px 0}
   </div>
  </div>
 </section>
+<footer class="foot-warn">⚠️ Flip&amp;Flop est un <b>outil d'étude</b> : utilise-le avant ou après tes parties, jamais pendant une partie en ligne. Winamax interdit les calculateurs et les solveurs pendant le jeu.</footer>
 </main>
 
 <!-- choix de carte -->

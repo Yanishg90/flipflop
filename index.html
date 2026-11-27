@@ -70,6 +70,7 @@ td,th{padding:5px 4px;border-bottom:1px solid var(--line);text-align:left}
 th{color:var(--mute);font-weight:600}
 td.r,th.r{text-align:right}
 td.r b{white-space:nowrap}
+#svOut td.r{white-space:nowrap}
 .tscroll{overflow-x:auto}
 .kpi{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:10px}
 .kpi div{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px}
@@ -149,7 +150,7 @@ details ul{padding-left:20px;margin:6px 0}
 <body>
 <header>
   <div class="top">
-    <h1><span style="color:#fff">♣</span> Flip<span>&amp;</span>Flop</h1>
+    <h1><span style="color:var(--red)">♣</span> Flip<span>&amp;</span>Flop</h1>
     <button class="btn small" id="installBtn">📲 Installer l'appli</button>
   </div>
   <nav id="nav"></nav>
@@ -321,15 +322,17 @@ details ul{padding-left:20px;margin:6px 0}
 
 <!-- ================= SOLVEUR RIVER ================= -->
 <section id="t-solv" class="tab">
- <p class="intro">Le vrai calcul GTO à la river : Flip&amp;Flop cherche l'équilibre entre ta range et la sienne, et te dit quand miser, checker, payer ou te coucher, main par main.</p>
+ <p class="intro">Au flop et au turn : des conseils GTO selon le tableau (qui est avantagé, à quelle fréquence et de combien miser). À la river : le vrai calcul de l'équilibre entre ta range et la sienne, main par main.</p>
  <div class="grid2"><div class="col">
-  <div class="card"><h2>1. Le tableau (les 5 cartes)</h2>
+  <div class="card"><h2>1. Le tableau</h2>
+   <p class="help">3 cartes = conseils pour le flop · 4 cartes = conseils pour le turn · 5 cartes = calcul exact de la river.</p>
    <div class="slots" id="svBoard"></div>
    <p class="help" style="margin-top:12px">Tes 2 cartes (facultatif, pour un conseil sur ta main) :</p>
    <div class="slots" id="svHero"></div>
   </div>
   <div class="card"><h2>2. Les joueurs <button class="q" data-q="range" aria-label="Explication">?</button></h2>
-   <div class="f"><label>Qui parle en premier à la river ?</label><select id="svOop"><option value="1">Toi (tu es hors de position)</option><option value="0">L'adversaire (tu es en position)</option></select></div>
+   <div class="f"><label>Qui a relancé avant le flop ?</label><select id="svPfa"><option value="hero">Toi</option><option value="villain">L'adversaire</option></select></div>
+   <div class="f"><label>Qui parle en premier après le flop ?</label><select id="svOop"><option value="1">Toi (tu es hors de position)</option><option value="0">L'adversaire (tu es en position)</option></select></div>
    <h3>Ta range (les mains que tu peux encore avoir à la river)</h3>
    <div class="row"><input type="text" id="svRH"></div><div class="row"><select id="svRHp" style="max-width:100%"><option value="">Choisir une range type…</option></select></div><div class="help" id="svRHi"></div>
    <h3>Sa range</h3>
@@ -337,7 +340,7 @@ details ul{padding-left:20px;margin:6px 0}
    <p class="note">Plus les ranges sont réalistes (seulement les mains encore là à la river), plus le résultat est juste.</p>
   </div>
   <div class="card"><h2>3. Les montants</h2>
-   <div class="f"><label>Pot au début de la river</label><input type="number" id="svPot" min="0"></div>
+   <div class="f"><label>Pot au début de ce tour</label><input type="number" id="svPot" min="0"></div>
    <div class="f"><label>Tapis restant (le plus petit des deux)</label><input type="number" id="svStack" min="0"></div>
    <div class="f"><label>Taille de mise étudiée</label><select id="svSize"><option value="0.33">1/3 du pot</option><option value="0.5">1/2 pot</option><option value="0.75">3/4 du pot</option><option value="1">Le pot</option><option value="1.5">1,5 pot</option><option value="allin">Tapis</option></select></div>
    <div class="row"><button class="btn" id="svRun">🧠 Calculer la stratégie GTO</button></div>
@@ -875,6 +878,7 @@ const PRESETS = {};
 for(const [p,txt] of Object.entries(OPEN)) PRESETS[`${p} ouvre (${fr(rangePct(parseRange(txt).set)*100,0)} %)`]=txt;
 for(const p of ["UTG","UTG+1","UTG+2"]) PRESETS[`${p} ouvre à 9 joueurs (${fr(rangePct(parseRange(OPEN9[p]).set)*100,0)} %)`]=OPEN9[p];
 PRESETS["BB défend contre le bouton (paie ou relance)"]=FACING[0].raise+", "+FACING[0].call;
+PRESETS["BB paie contre le bouton (sans sur-relancer)"]=FACING[0].call;
 PRESETS["3-bet de la BB contre le bouton"]=FACING[0].raise;
 PRESETS["3-bet serré (~4 %)"]="QQ+, AKs, AKo, AQs, A5s, KQs";
 PRESETS["Mains premium (~3 %)"]="QQ+, AKs, AKo";
@@ -2236,17 +2240,116 @@ function riverBest(res,cards,board,isO){
   const vCallB=sd(rB,true)/Math.max(1e-9,rB.tot), vChk=sd(rC,false)/Math.max(1e-9,rC.tot), vBetC=(P*(rC.tot-rCD.tot)+sd(rCD,true))/Math.max(1e-9,rC.tot);
   return {callB:vCallB,check:vChk,bet:vBetC};
 }
-let solv=Object.assign({board:[-1,-1,-1,-1,-1],hero:[-1,-1],oop:"0",rH:OPEN.BTN,rV:FACING[0].call+", "+FACING[0].raise,pot:"100",stack:"300",size:"0.75"},store.get("pgto_solv",{}));
+/* ===================================================================
+   CONSEILLER FLOP / TURN (inspiré des solveurs, pas un calcul complet)
+=================================================================== */
+function boardTexture(bk){
+  const suits=[0,0,0,0]; bk.forEach(c=>suits[c&3]++);
+  const maxS=Math.max(...suits), two=suits.filter(x=>x===2).length;
+  const ranks=[...new Set(bk.map(c=>c>>2))], paired=ranks.length<bk.length, high=Math.max(...ranks);
+  const rs=new Set(ranks); if(rs.has(12)) rs.add(-1);
+  let conn=0; for(let lo=-1;lo<=8;lo++){ let k=0; for(let r=lo;r<lo+5;r++) if(rs.has(r)) k++; conn=Math.max(conn,k); }
+  const wet=(maxS>=3?2:maxS===2?1:0)+(conn>=4?2:conn===3?1:0);
+  const parts=[];
+  parts.push(maxS>=3?(bk.length===3?"trois cartes de la même couleur (couleur possible)":"couleur possible"):maxS===2?(two>=2?"deux tirages couleur possibles":"tirage couleur possible"):"couleurs toutes différentes");
+  parts.push(conn>=4?"cartes très liées (quinte possible)":conn===3?"cartes liées (tirages quinte)":"cartes éloignées");
+  if(paired) parts.push("tableau pairé");
+  parts.push(high>=10?"avec une carte haute ("+(RANKS[high]==="T"?"10":RANKS[high])+")":"plutôt bas");
+  return {maxS,paired,conn,high,wet,dyn:wet>=2,label:parts.join(", "),kind:wet>=3?"très dynamique":wet===2?"dynamique":wet===1?"assez sec":"sec"};
+}
+function rangeVsRange(bk,A,B,N=6000){
+  const d=new Set(bk), cut=s=>{ const a=[]; s.forEach(cl=>combosOf(cl).forEach(cb=>{ if(!d.has(cb[0])&&!d.has(cb[1])) a.push(cb); })); return a; };
+  const a=cut(A), b=cut(B); if(!a.length||!b.length) return null;
+  const av=[]; for(let c=0;c<52;c++) if(!d.has(c)) av.push(c);
+  let w=0,n=0;
+  for(let it=0;it<N;it++){
+    const x=a[(rnd()*a.length)|0], y=b[(rnd()*b.length)|0];
+    if(x[0]===y[0]||x[0]===y[1]||x[1]===y[0]||x[1]===y[1]) continue;
+    const bd=bk.slice(); while(bd.length<5){ const c=av[(rnd()*av.length)|0]; if(c!==x[0]&&c!==x[1]&&c!==y[0]&&c!==y[1]&&!bd.includes(c)) bd.push(c); }
+    const s1=evalArr([...x,...bd]), s2=evalArr([...y,...bd]); w+=s1>s2?1:s1===s2?0.5:0; n++;
+  }
+  return n?w/n:null;
+}
+function rangeMix(bk,S){ // part de mains fortes / moyennes / tirages / rien, et de « très fortes » (double paire ou mieux)
+  const d=new Set(bk), cl=makeClassifier(bk), bc=evalArr(bk)>>20, m={value:0,medium:0,draw:0,air:0,nuts:0,n:0};
+  S.forEach(c=>combosOf(c).forEach(cb=>{ if(d.has(cb[0])||d.has(cb[1])) return; m[cl(cb)]++; m.n++; const cat=evalArr([...cb,...bk])>>20; if(cat>=2&&cat>bc&&!(cat===2&&bc===1)) m.nuts++; }));
+  for(const k of ["value","medium","draw","air","nuts"]) m[k]=m.n?m[k]/m.n:0;
+  return m;
+}
+function adviseFlopTurn(bk){
+  const out=$("svOut");
+  const rH=parseRange(solv.rH), rV=parseRange(solv.rV);
+  if(rH.bad.length||!rH.set.size) return out.innerHTML='<p class="err">Ta range n\'est pas valide.</p>';
+  if(rV.bad.length||!rV.set.size) return out.innerHTML='<p class="err">Sa range n\'est pas valide.</p>';
+  const turn=bk.length===4, heroPfa=solv.pfa!=="villain", heroLast=solv.oop!=="1";
+  const tx=boardTexture(bk), eqH=rangeVsRange(bk,rH.set,rV.set);
+  if(eqH===null) return out.innerHTML='<p class="err">Aucune main possible avec ce tableau : vérifie les ranges.</p>';
+  const mH=rangeMix(bk,rH.set), mV=rangeMix(bk,rV.set);
+  const pfaEq=heroPfa?eqH:1-eqH, nutAdv=heroPfa?mH.nuts-mV.nuts:mV.nuts-mH.nuts, pfaIP=heroPfa?heroLast:!heroLast;
+  // plan du relanceur d'avant flop, d'après les grandes tendances des solveurs :
+  // score = avantage de chances + hauteur du tableau − cartes liées / tirages + tableau pairé + avantage en mains très fortes
+  const score=(pfaEq-0.5)*100+(tx.high>=11?2:tx.high>=9?0:-2)-(tx.conn>=3?2:0)-(tx.conn>=4?1:0)-(tx.maxS===2?1:0)+(tx.paired?1:0)+nutAdv*50;
+  let freq, size, plan;
+  if(score>=3&&!tx.dyn){ freq=pfaIP?[70,90]:[50,65]; size="petite (environ 1/3 du pot)"; plan="mise petite et souvent, avec presque toute la range : l'adversaire a raté ce tableau la plupart du temps"; }
+  else if(score>=1&&tx.dyn){ freq=pfaIP?[45,60]:[30,45]; size="grosse (2/3 à 3/4 du pot)"; plan="mise moins souvent mais plus gros : avec les mains fortes et les tirages, et checke les mains moyennes"; }
+  else if(score>=1){ freq=pfaIP?[55,70]:[40,55]; size="petite à moyenne (1/3 à 1/2 pot)"; plan="mise assez souvent, petit, et checke une partie des mains moyennes"; }
+  else if(score>=-1){ freq=pfaIP?[40,55]:[25,40]; size="moyenne (environ 1/2 pot)"; plan="mélange : mise une partie de tes mains fortes et tirages, checke beaucoup de mains moyennes"; }
+  else { freq=pfaIP?[25,40]:[15,30]; size="petite à moyenne"; plan="checke la plupart du temps : ce tableau aide plutôt celui qui a payé avant le flop"; }
+  if(turn){ freq=[Math.max(15,freq[0]-15),Math.max(25,freq[1]-15)]; if(!/grosse/.test(size)) size="plus grosse qu'au flop (2/3 du pot environ)"; plan="au turn, on mise moins souvent qu'au flop mais plus gros : "+plan; }
+  const who=heroPfa?"Toi":"Lui", pctTxt=v=>fr(v*100,0)+" %";
+  let h=`<p class="help">${turn?"Turn":"Flop"} : ${bk.map(miniCard).join("")}</p>
+    <h3>Le tableau</h3><p>Tableau <b>${tx.kind}</b> : ${tx.label}.</p>
+    <h3>Qui est avantagé ?</h3>
+    <div class="kpi"><div><small>Tes chances (ta range contre la sienne)</small><b style="color:${eqH>=0.5?"var(--acc)":"var(--bad)"}">${pctTxt(eqH)}</b><small>avantage de range ${eqH>=0.53?"pour toi":eqH<=0.47?"pour lui":"partagé"}</small></div>
+      <div><small>Mains très fortes (double paire ou mieux)</small><b>${pctTxt(mH.nuts)} / ${pctTxt(mV.nuts)}</b><small>toi / lui</small></div></div>
+    <table style="margin-top:8px"><tr><th></th><th class="r">Toi</th><th class="r">Lui</th></tr>
+      <tr><td>💪 Mains fortes (top paire ou mieux)</td><td class="r">${pctTxt(mH.value)}</td><td class="r">${pctTxt(mV.value)}</td></tr>
+      <tr><td>🤏 Mains moyennes</td><td class="r">${pctTxt(mH.medium)}</td><td class="r">${pctTxt(mV.medium)}</td></tr>
+      <tr><td>🎣 Tirages</td><td class="r">${pctTxt(mH.draw)}</td><td class="r">${pctTxt(mV.draw)}</td></tr>
+      <tr><td>💨 Rien</td><td class="r">${pctTxt(mH.air)}</td><td class="r">${pctTxt(mV.air)}</td></tr></table>
+    <h3>La stratégie conseillée pour ${heroPfa?"toi (tu as relancé avant le flop)":"lui (il a relancé avant le flop)"}</h3>
+    <div class="rvi rv-good"><b>${who} : ${turn?"deuxième mise (barrel)":"mise de continuation (c-bet)"} environ ${freq[0]} à ${freq[1]} % du temps, taille ${size}.</b><br>En clair : ${plan}.</div>`;
+  if(solv.hero.every(c=>c>=0)&&!solv.hero.some(c=>bk.includes(c))){
+    const cl=makeClassifier(bk)(solv.hero), cat=CAT[evalArr([...solv.hero,...bk])>>20];
+    const vC=[]; rV.set.forEach(c=>combosOf(c).forEach(cb=>vC.push(cb)));
+    const eq=quickEquity(solv.hero,bk,{t:2,combos:vC},8000);
+    const P=+solv.pot||100, B=solv.size==="allin"?(+solv.stack||P):P*(+solv.size), need=B/(P+2*B);
+    const nm={value:"une main forte",medium:"une main moyenne",draw:"un tirage",air:"pas grand-chose"}[cl];
+    let a;
+    if(heroPfa){
+      const small=/^petite/.test(size)&&!turn;
+      a=cl==="value"?"<b>mise</b> pour la valeur."
+        :cl==="draw"?"<b>mise</b> (semi-bluff) : tu peux encore toucher."
+        :cl==="medium"?(small?"<b>mise petit</b> ou checke, les deux se jouent.":"<b>checke</b> : ta main a de la valeur mais n'aime pas les grosses mises.")
+        :(small&&score>=3?"<b>mise petit</b> en bluff : sur ce tableau, ça marche souvent.":"<b>checke</b> et abandonne si on mise fort, sauf si tu as un petit tirage (bluff possible).");
+    } else {
+      a=cl==="value"?`<b>paie</b>, et ${heroLast?"relance":"check-relance"} parfois avec tes meilleures mains.`
+        :cl==="draw"?(eq>=need?"<b>paie</b> (tes chances suffisent), et relance parfois avec les gros tirages.":"<b>paie</b> si la mise est petite, sinon couche-toi.")
+        :cl==="medium"?(eq>=need?"<b>paie</b> : tu as assez de chances contre sa mise.":"<b>couche-toi</b> face à une grosse mise, paie une petite.")
+        :"<b>couche-toi</b> face à une mise (sauf petit tirage et petite mise).";
+    }
+    h+=`<h3>Avec ta main ${solv.hero.map(miniCard).join("")} (${cat})</h3>
+      <p>Tu as <b>${nm}</b>, avec <b>${eq!==null?pctTxt(eq):"—"}</b> de chances contre toute sa range.<br>👉 ${a}</p>
+      ${heroPfa?"":`<p class="help">Face à une mise de ${fr(B/P*100,0)} % du pot, il te faut ${pctTxt(need)} de chances pour payer.</p>`}`;
+  } else h+='<p class="help">Mets tes 2 cartes plus haut pour un conseil sur ta main.</p>';
+  h+=`<p class="note">Conseils inspirés des grandes tendances des solveurs (avantage de range, avantage en mains fortes, texture du tableau). Ce n'est pas un calcul complet comme à la river : au flop et au turn, il y a trop de cartes à venir pour tout calculer sur un téléphone.</p>`;
+  out.innerHTML=h;
+}
+
+let solv=Object.assign({board:[-1,-1,-1,-1,-1],hero:[-1,-1],oop:"0",pfa:"hero",rH:OPEN.BTN,rV:FACING[0].call,pot:"100",stack:"300",size:"0.75"},store.get("pgto_solv",{}));
 const saveSolv=()=>store.set("pgto_solv",solv);
 function renderSolv(){
   $("svBoard").innerHTML=solv.board.map((c,i)=>slotHtml(c,"sb"+i)+(i===2||i===3?'<div class="sep"></div>':"")).join("");
   $("svHero").innerHTML=solv.hero.map((c,i)=>slotHtml(c,"sh"+i)).join("");
-  $("svOop").value=solv.oop; $("svRH").value=solv.rH; $("svRV").value=solv.rV; $("svPot").value=solv.pot; $("svStack").value=solv.stack; $("svSize").value=solv.size;
+  $("svOop").value=solv.oop; $("svPfa").value=solv.pfa||"hero"; $("svRH").value=solv.rH; $("svRV").value=solv.rV; $("svPot").value=solv.pot; $("svStack").value=solv.stack; $("svSize").value=solv.size;
   $("svRHi").innerHTML=rangeInfo(solv.rH); $("svRVi").innerHTML=rangeInfo(solv.rV);
 }
 function runSolver(){
   const out=$("svOut"), err=m=>{ out.innerHTML=`<p class="err">${m}</p>`; };
-  if(solv.board.some(c=>c<0)) return err("Mets les 5 cartes du tableau (la river doit être sortie).");
+  const nb=solv.board.findIndex(c=>c<0)<0?5:solv.board.findIndex(c=>c<0);
+  if(solv.board.slice(nb).some(c=>c>=0)) return err("Remplis le tableau dans l'ordre : flop, puis turn, puis river.");
+  if(nb<3) return err("Mets au moins les 3 cartes du flop.");
+  if(nb<5){ out.innerHTML='<p class="help">Analyse du tableau en cours…</p>'; setTimeout(()=>adviseFlopTurn(solv.board.slice(0,nb)),30); return; }
   const rH=parseRange(solv.rH), rV=parseRange(solv.rV);
   if(rH.bad.length||!rH.set.size) return err("Ta range n'est pas valide.");
   if(rV.bad.length||!rV.set.size) return err("Sa range n'est pas valide.");
@@ -2739,7 +2842,7 @@ function init(){
   // onglets
   // 4 grands boutons en bas, et leurs onglets en haut
   const GROUPS={
-    jouer:[["eq","🎯 Chances"],["pre","🃏 Préflop"],["odds","🧮 Cotes"],["solv","🧠 Solveur river"]],
+    jouer:[["eq","🎯 Chances"],["pre","🃏 Préflop"],["odds","🧮 Cotes"],["solv","🧠 Solveur"]],
     tournoi:[["pf","⚡ Tapis ou fold"],["icm","🏆 ICM"]],
     analyser:[["jeu","📈 Mon jeu"],["rev","🔍 Revoir une main"],["vil","👥 Joueurs"],["ses","📒 Sessions"]],
     apprendre:[["tr","🎓 Cours et exercices"]]
@@ -2968,7 +3071,7 @@ function init(){
   $("svRHp").onchange=e=>{ if(e.target.value){ solv.rH=PRESETS[e.target.value]; e.target.value=""; saveSolv(); renderSolv(); } };
   $("svRVp").onchange=e=>{ if(e.target.value){ solv.rV=PRESETS[e.target.value]; e.target.value=""; saveSolv(); renderSolv(); } };
   [["svRH","rH"],["svRV","rV"],["svPot","pot"],["svStack","stack"]].forEach(([id,k])=>$(id).addEventListener("input",e=>{ solv[k]=e.target.value; saveSolv(); if(k==="rH") $("svRHi").innerHTML=rangeInfo(solv.rH); if(k==="rV") $("svRVi").innerHTML=rangeInfo(solv.rV); }));
-  [["svOop","oop"],["svSize","size"]].forEach(([id,k])=>$(id).addEventListener("change",e=>{ solv[k]=e.target.value; saveSolv(); }));
+  [["svOop","oop"],["svSize","size"],["svPfa","pfa"]].forEach(([id,k])=>$(id).addEventListener("change",e=>{ solv[k]=e.target.value; saveSolv(); }));
   $("svRun").onclick=runSolver;
   renderSolv();
   { const c=photoCfg(); $("rvPhUrl").value=c.url; $("rvPhCode").value=c.code; }

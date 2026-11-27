@@ -320,6 +320,35 @@ details ul{padding-left:20px;margin:6px 0}
  </div>
 </section>
 
+<!-- ================= SOLVEUR RIVER ================= -->
+<section id="t-solv" class="tab">
+ <p class="warn">⚠️ <b>Outil d'étude</b> : utilise-le avant ou après tes parties, <b>jamais pendant une partie en ligne</b> (les solveurs sont interdits pendant le jeu).</p>
+ <p class="intro">Le vrai calcul GTO à la river : Flip&amp;Flop cherche l'équilibre entre ta range et la sienne, et te dit quand miser, checker, payer ou te coucher, main par main.</p>
+ <div class="grid2"><div class="col">
+  <div class="card"><h2>1. Le tableau (les 5 cartes)</h2>
+   <div class="slots" id="svBoard"></div>
+   <p class="help" style="margin-top:12px">Tes 2 cartes (facultatif, pour un conseil sur ta main) :</p>
+   <div class="slots" id="svHero"></div>
+  </div>
+  <div class="card"><h2>2. Les joueurs <button class="q" data-q="range" aria-label="Explication">?</button></h2>
+   <div class="f"><label>Qui parle en premier à la river ?</label><select id="svOop"><option value="1">Toi (tu es hors de position)</option><option value="0">L'adversaire (tu es en position)</option></select></div>
+   <h3>Ta range (les mains que tu peux encore avoir à la river)</h3>
+   <div class="row"><input type="text" id="svRH"></div><div class="row"><select id="svRHp" style="max-width:100%"><option value="">Choisir une range type…</option></select></div><div class="help" id="svRHi"></div>
+   <h3>Sa range</h3>
+   <div class="row"><input type="text" id="svRV"></div><div class="row"><select id="svRVp" style="max-width:100%"><option value="">Choisir une range type…</option></select></div><div class="help" id="svRVi"></div>
+   <p class="note">Plus les ranges sont réalistes (seulement les mains encore là à la river), plus le résultat est juste.</p>
+  </div>
+  <div class="card"><h2>3. Les montants</h2>
+   <div class="f"><label>Pot au début de la river</label><input type="number" id="svPot" min="0"></div>
+   <div class="f"><label>Tapis restant (le plus petit des deux)</label><input type="number" id="svStack" min="0"></div>
+   <div class="f"><label>Taille de mise étudiée</label><select id="svSize"><option value="0.33">1/3 du pot</option><option value="0.5">1/2 pot</option><option value="0.75">3/4 du pot</option><option value="1">Le pot</option><option value="1.5">1,5 pot</option><option value="allin">Tapis</option></select></div>
+   <div class="row"><button class="btn" id="svRun">🧠 Calculer la stratégie GTO</button></div>
+  </div>
+ </div><div class="col">
+  <div class="card"><h2>🧠 La stratégie GTO</h2><div id="svOut"><p class="help">Remplis le tableau et les ranges, puis touche « Calculer ».</p></div></div>
+ </div></div>
+</section>
+
 <!-- ================= COTES ================= -->
 <section id="t-odds" class="tab">
  <p class="intro">Les calculs qui disent si une décision gagne de l'argent à long terme. Ce sont les bases mathématiques du GTO.</p>
@@ -924,18 +953,20 @@ const saveEq = () => { store.set("pgto_players",players); store.set("pgto_board"
 function cardRef(k){
   if(k[0]==="b") return [board,+k.slice(1)];
   if(k[0]==="r") return [k[1]==="h"?rv.hero:k[1]==="b"?rv.board:rv.opp,+k.slice(2)];
+  if(k[0]==="s") return [k[1]==="h"?solv.hero:solv.board,+k.slice(2)];
   const [p,i]=k.slice(1).split("_").map(Number); return [players[p].cards,i];
 }
 function getCard(k){ const [a,i]=cardRef(k); return a[i]; }
-function setCard(k,c){ const [a,i]=cardRef(k); a[i]=c; if(k[0]==="r") saveRv(); else saveEq(); }
+function setCard(k,c){ const [a,i]=cardRef(k); a[i]=c; if(k[0]==="r") saveRv(); else if(k[0]==="s") saveSolv(); else saveEq(); }
 function usedCards(except){
   const u=new Set(), add=(arr,pre)=>arr.forEach((c,i)=>{ if(c>=0&&pre+i!==except) u.add(c); });
   if(except[0]==="r"){ add(rv.hero,"rh"); add(rv.board,"rb"); add(rv.opp,"ro"); return u; }
+  if(except[0]==="s"){ add(solv.hero,"sh"); add(solv.board,"sb"); return u; }
   add(board,"b");
   players.forEach((p,k)=>{ if(p.type==="cards") add(p.cards,`p${k}_`); });
   return u;
 }
-const renderCards = k => k[0]==="r" ? renderRv() : renderEq();
+const renderCards = k => k[0]==="r" ? renderRv() : k[0]==="s" ? renderSolv() : renderEq();
 const slotHtml = (c,k) => `<div class="slot ${c>=0?"f":""}" data-k="${k}">${c>=0?cardHtml(c):"+"}</div>`;
 function rangeInfo(txt){
   if(!String(txt).trim()) return "Range vide";
@@ -976,7 +1007,7 @@ function drawPicker(){
   $("pkSuits").innerHTML=[0,1,2,3].map(s=>`<button data-ps="${s}" class="s${s}" ${pickRank<0||used.has(pickRank*4+s)?"disabled":""}>${SUITS[s]}</button>`).join("");
 }
 function nextEmpty(k){
-  const nx={b0:"b1",b1:"b2",rh0:"rh1",rb0:"rb1",rb1:"rb2",ro0:"ro1"}[k] || (k[0]==="p"&&k.endsWith("_0")?k.replace("_0","_1"):null);
+  const nx={b0:"b1",b1:"b2",rh0:"rh1",rb0:"rb1",rb1:"rb2",ro0:"ro1",sb0:"sb1",sb1:"sb2",sb2:"sb3",sb3:"sb4",sh0:"sh1"}[k] || (k[0]==="p"&&k.endsWith("_0")?k.replace("_0","_1"):null);
   return nx && getCard(nx)<0 ? nx : null;
 }
 
@@ -2153,6 +2184,131 @@ async function hhImport(texts){
   renderHH();
 }
 
+/* ===================================================================
+   SOLVEUR RIVER : équilibre GTO calculé (CFR+), range contre range
+   Arbre : le 1er joueur checke ou mise ; s'il mise, l'autre paie ou se couche ;
+   s'il checke, l'autre checke ou mise, puis le 1er paie ou se couche.
+=================================================================== */
+function solveRiver(board,rangeO,rangeI,P,B,iters=1500){
+  const bset=new Set(board);
+  const mk=set=>{ const hs=[]; set.forEach(cl=>combosOf(cl).forEach(cb=>{ if(!bset.has(cb[0])&&!bset.has(cb[1])) hs.push({c:cb,cl,s:evalArr([cb[0],cb[1],...board])}); })); hs.sort((a,b)=>a.s-b.s); return hs; };
+  const O=mk(rangeO), I=mk(rangeI);
+  if(!O.length||!I.length) return null;
+  const nO=O.length, nI=I.length, sO=O.map(h=>h.s), sI=I.map(h=>h.s);
+  // pour chaque main (triée), poids adverses plus faibles (W), égaux (T), plus forts (L)
+  const agg=(own,opp,w)=>{ const n=own.length, W=new Float64Array(n), T=new Float64Array(n), L=new Float64Array(n); let tot=0; for(const x of w) tot+=x;
+    let j=0, below=0; for(let i=0;i<n;i++){ while(j<opp.length&&opp[j]<own[i]){ below+=w[j]; j++; } let k=j, eq=0; while(k<opp.length&&opp[k]===own[i]){ eq+=w[k]; k++; } W[i]=below; T[i]=eq; L[i]=tot-below-eq; } return {W,T,L}; };
+  const sdBet=(a,i)=>(P+B)*a.W[i]-B*a.L[i]+P/2*a.T[i], sdChk=(a,i)=>P*a.W[i]+P/2*a.T[i];
+  const mkR=n=>({r0:new Float64Array(n),r1:new Float64Array(n),s:new Float64Array(n),w:new Float64Array(n)});
+  const A=mkR(nO), D=mkR(nO), Bn=mkR(nI), C=mkR(nI);  // probabilité de l'action « 1 » : A miser, D payer, B payer, C miser
+  const pr=(R,i)=>{ const a=Math.max(R.r0[i],0), b=Math.max(R.r1[i],0); return a+b>0?b/(a+b):0.5; };
+  const upd=(R,i,v0,v1,p,reach,t)=>{ const v=(1-p)*v0+p*v1; R.r0[i]=Math.max(0,R.r0[i]+v0-v); R.r1[i]=Math.max(0,R.r1[i]+v1-v); R.s[i]+=reach*p*t; R.w[i]+=reach*t; };
+  const pA=new Float64Array(nO), pD=new Float64Array(nO), pB=new Float64Array(nI), pC=new Float64Array(nI);
+  for(let t=1;t<=iters;t++){
+    for(let i=0;i<nO;i++){ pA[i]=pr(A,i); pD[i]=pr(D,i); }
+    for(let j=0;j<nI;j++){ pB[j]=pr(Bn,j); pC[j]=pr(C,j); }
+    // valeurs du 1er joueur (hors de position)
+    const one=new Float64Array(nI).fill(1), foldB=pB.reduce((a,x)=>a+1-x,0);
+    const aB=agg(sO,sI,pB), aChk=agg(sO,sI,pC.map(x=>1-x)), aCb=agg(sO,sI,pC);
+    for(let i=0;i<nO;i++){
+      const vBet=P*foldB+sdBet(aB,i), vCallD=sdBet(aCb,i), vChk=sdChk(aChk,i)+pD[i]*vCallD;
+      upd(A,i,vChk,vBet,pA[i],1,t); upd(D,i,0,vCallD,pD[i],1-pA[i],t);
+    }
+    // valeurs du 2e joueur (en position)
+    const rB=pA, rC=pA.map(x=>1-x), rCD=rC.map((x,i)=>x*pD[i]), rCF=rC.reduce((a,x,i)=>a+x*(1-pD[i]),0);
+    const bB=agg(sI,sO,rB), bChk=agg(sI,sO,rC), bCD=agg(sI,sO,rCD);
+    for(let j=0;j<nI;j++){
+      const vCallB=sdBet(bB,j), vChkC=sdChk(bChk,j), vBetC=P*rCF+sdBet(bCD,j);
+      upd(Bn,j,0,vCallB,pB[j],1,t); upd(C,j,vChkC,vBetC,pC[j],1,t);
+    }
+  }
+  const avg=R=>Array.from(R.s,(x,i)=>R.w[i]>0?x/R.w[i]:0.5);
+  return {O,I,bet:avg(A),callD:avg(D),callB:avg(Bn),betC:avg(C),P,B};
+}
+// meilleure réponse d'une main précise (même hors de la range) face à la stratégie calculée
+function riverBest(res,cards,board,isO){
+  const s=evalArr([...cards,...board]), {O,I,P,B}=res, bset=new Set(cards);
+  const sum=(hs,w,f)=>{ let W=0,T=0,L=0,tot=0; hs.forEach((h,k)=>{ if(bset.has(h.c[0])||bset.has(h.c[1])) return; const x=w(k); tot+=x; if(h.s<s) W+=x; else if(h.s===s) T+=x; else L+=x; }); return {W,T,L,tot}; };
+  const sd=(a,bet)=>bet?(P+B)*a.W-B*a.L+P/2*a.T:P*a.W+P/2*a.T;
+  if(isO){
+    const n=sum(I,()=>1), aB=sum(I,k=>res.callB[k]), aF=n.tot-aB.tot, aChk=sum(I,k=>1-res.betC[k]), aCb=sum(I,k=>res.betC[k]);
+    const vCallD=sd(aCb,true), vBet=(P*aF+sd(aB,true))/n.tot, vChk=(sd(aChk,false)+Math.max(0,vCallD))/n.tot;
+    return {bet:vBet,check:vChk,callD:vCallD/Math.max(1e-9,aCb.tot),facing:aCb.tot/n.tot};
+  }
+  const rB=sum(O,k=>res.bet[k]), rC=sum(O,k=>1-res.bet[k]), rCD=sum(O,k=>(1-res.bet[k])*res.callD[k]);
+  const vCallB=sd(rB,true)/Math.max(1e-9,rB.tot), vChk=sd(rC,false)/Math.max(1e-9,rC.tot), vBetC=(P*(rC.tot-rCD.tot)+sd(rCD,true))/Math.max(1e-9,rC.tot);
+  return {callB:vCallB,check:vChk,bet:vBetC};
+}
+let solv=Object.assign({board:[-1,-1,-1,-1,-1],hero:[-1,-1],oop:"0",rH:OPEN.BTN,rV:FACING[0].call+", "+FACING[0].raise,pot:"100",stack:"300",size:"0.75"},store.get("pgto_solv",{}));
+const saveSolv=()=>store.set("pgto_solv",solv);
+function renderSolv(){
+  $("svBoard").innerHTML=solv.board.map((c,i)=>slotHtml(c,"sb"+i)+(i===2||i===3?'<div class="sep"></div>':"")).join("");
+  $("svHero").innerHTML=solv.hero.map((c,i)=>slotHtml(c,"sh"+i)).join("");
+  $("svOop").value=solv.oop; $("svRH").value=solv.rH; $("svRV").value=solv.rV; $("svPot").value=solv.pot; $("svStack").value=solv.stack; $("svSize").value=solv.size;
+  $("svRHi").innerHTML=rangeInfo(solv.rH); $("svRVi").innerHTML=rangeInfo(solv.rV);
+}
+function runSolver(){
+  const out=$("svOut"), err=m=>{ out.innerHTML=`<p class="err">${m}</p>`; };
+  if(solv.board.some(c=>c<0)) return err("Mets les 5 cartes du tableau (la river doit être sortie).");
+  const rH=parseRange(solv.rH), rV=parseRange(solv.rV);
+  if(rH.bad.length||!rH.set.size) return err("Ta range n'est pas valide.");
+  if(rV.bad.length||!rV.set.size) return err("Sa range n'est pas valide.");
+  const P=+solv.pot||0, S=+solv.stack||0; if(P<=0) return err("Indique le pot.");
+  const B=solv.size==="allin"?S:Math.min(S||Infinity,P*(+solv.size));
+  if(!(B>0)) return err("Indique ton tapis restant.");
+  const heroO=solv.oop==="1";
+  out.innerHTML='<p class="help">Calcul de l\'équilibre en cours…</p>';
+  setTimeout(()=>{
+    const big=setCombos(rH.set)*setCombos(rV.set)>150000;
+    const t0=Date.now(), res=solveRiver(solv.board,heroO?rH.set:rV.set,heroO?rV.set:rH.set,P,B,big?700:1500);
+    if(!res) return err("Aucune main possible avec ce tableau : vérifie les ranges.");
+    const ms=Date.now()-t0, me=heroO?"O":"I";
+    const mean=a=>a.reduce((x,y)=>x+y,0)/a.length;
+    const reachMean=(f,w)=>{ let s=0,t=0; f.forEach((x,k)=>{ s+=x*w[k]; t+=w[k]; }); return t?s/t:0; };
+    const oBet=mean(res.bet), iCall=reachMean(res.callB,res.I.map(()=>1)), iBet=mean(res.betC), oCall=reachMean(res.callD,res.bet.map(x=>1-x));
+    const fmtB=fmtAmt(B), who=x=>x?"Toi":"Lui";
+    let h=`<p class="help">Mise étudiée : <b>${fmtB}</b> dans un pot de <b>${fmtAmt(P)}</b> (${fr(B/P*100,0)} % du pot) · calcul en ${ms} ms.</p>
+      <h3>Ce que fait chacun (stratégie GTO)</h3><table>
+      <tr><td>${who(heroO)} (parle en premier) : <b>mise</b></td><td class="r"><b>${pc(oBet,0)}</b> de ses mains</td></tr>
+      <tr><td>${who(!heroO)} face à cette mise : <b>paie</b></td><td class="r"><b>${pc(iCall,0)}</b></td></tr>
+      <tr><td>${who(!heroO)} après un check : <b>mise</b></td><td class="r"><b>${pc(iBet,0)}</b></td></tr>
+      <tr><td>${who(heroO)} face à cette mise : <b>paie</b></td><td class="r"><b>${pc(oCall,0)}</b></td></tr></table>
+      <p class="note">Pour comparaison, la théorie dit qu'il faut payer au moins ${pc(P/(P+B),0)} du temps (MDF) face à cette taille de mise.</p>`;
+    // ta main
+    if(solv.hero.every(c=>c>=0)){
+      if(solv.hero.some(c=>solv.board.includes(c))) h+='<p class="err">Tes cartes sont déjà au tableau.</p>';
+      else {
+        const bst=riverBest(res,solv.hero,solv.board,heroO), list=heroO?res.O:res.I;
+        const k=list.findIndex(x=>(x.c[0]===solv.hero[0]&&x.c[1]===solv.hero[1])||(x.c[0]===solv.hero[1]&&x.c[1]===solv.hero[0]));
+        const mix=(p,a,b)=>p>0.97?`<b>${a}</b> (toujours)`:p<0.03?`<b>${b}</b> (toujours)`:`<b>${a}</b> ${pc(p,0)} du temps, <b>${b}</b> le reste`;
+        const best=(x,y,a,b)=>x>=y?a:b;
+        h+=`<h3>Avec ta main ${solv.hero.map(miniCard).join("")} (${CAT[evalArr([...solv.hero,...solv.board])>>20]})</h3>`;
+        if(heroO){
+          h+=k>=0?`<p>👉 En premier : ${mix(res.bet[k],"miser","checker")}.<br>👉 Si tu checkes et qu'il mise : ${mix(res.callD[k],"payer","te coucher")}.</p>`
+                 :`<p>👉 Ta main n'est pas dans ta range, voici le meilleur choix : <b>${best(bst.bet,bst.check,"miser","checker")}</b>.</p>`;
+          h+=`<p class="help">Gain moyen : miser ${fr(bst.bet,1)} · checker ${fr(bst.check,1)} (en jetons, sur le pot de ${fmtAmt(P)}).</p>`;
+        } else {
+          h+=k>=0?`<p>👉 S'il mise : ${mix(res.callB[k],"payer","te coucher")}.<br>👉 S'il checke : ${mix(res.betC[k],"miser","checker")}.</p>`
+                 :`<p>👉 Ta main n'est pas dans ta range, voici les meilleurs choix : s'il mise, <b>${bst.callB>=0?"payer":"te coucher"}</b> · s'il checke, <b>${best(bst.bet,bst.check,"miser","checker")}</b>.</p>`;
+          h+=`<p class="help">Gain moyen si tu paies sa mise : ${fr(bst.callB,1)} (se coucher = 0) · s'il checke : miser ${fr(bst.bet,1)}, checker ${fr(bst.check,1)}.</p>`;
+        }
+      }
+    } else h+='<p class="help">Mets tes 2 cartes plus haut pour voir quoi faire avec ta main.</p>';
+    // grilles : ta stratégie main par main
+    const grid=(list,f)=>{ const g={}; list.forEach((x,k)=>{ const e=g[x.cl]||(g[x.cl]={s:0,n:0}); e.s+=f[k]; e.n++; }); return g; };
+    const cell=(g,col)=>l=>{ const e=g[l]; return e?{style:freqStyle(e.s/e.n,col)}:{style:"opacity:.2"}; };
+    h+=heroO
+      ?`<h3>Ta range : quand miser en premier</h3><div class="legend"><span><i style="background:var(--acc)"></i>miser</span><span><i style="background:#4a1c22"></i>checker</span></div><div class="rg ro" id="svG1"></div>
+        <h3>Ta range : payer après avoir checké</h3><div class="legend"><span><i style="background:var(--acc2)"></i>payer</span><span><i style="background:#4a1c22"></i>se coucher</span></div><div class="rg ro" id="svG2"></div>`
+      :`<h3>Ta range : payer sa mise</h3><div class="legend"><span><i style="background:var(--acc2)"></i>payer</span><span><i style="background:#4a1c22"></i>se coucher</span></div><div class="rg ro" id="svG1"></div>
+        <h3>Ta range : miser quand il checke</h3><div class="legend"><span><i style="background:var(--acc)"></i>miser</span><span><i style="background:#4a1c22"></i>checker</span></div><div class="rg ro" id="svG2"></div>`;
+    h+=`<p class="note">Calcul exact de l'équilibre pour cet arbre simplifié : une seule taille de mise, sans relance. Les bloqueurs (cartes que tu tiens) ne sont pas pris en compte entre les deux ranges. Une case à moitié colorée = la main se joue des deux façons.</p>`;
+    out.innerHTML=h;
+    if(heroO){ drawGrid($("svG1"),cell(grid(res.O,res.bet),"var(--acc)")); drawGrid($("svG2"),cell(grid(res.O,res.callD),"var(--acc2)")); }
+    else { drawGrid($("svG1"),cell(grid(res.I,res.callB),"var(--acc2)")); drawGrid($("svG2"),cell(grid(res.I,res.betC),"var(--acc)")); }
+  },30);
+}
+
 const num = id => Math.max(0,+$(id).value||0);
 function calcOdds(){
   const pot=num("oPot"), bet=num("oBet"), eq=Math.min(100,num("oEq"))/100;
@@ -2586,7 +2742,7 @@ function init(){
   // onglets
   // 4 grands boutons en bas, et leurs onglets en haut
   const GROUPS={
-    jouer:[["eq","🎯 Chances"],["pre","🃏 Préflop"],["odds","🧮 Cotes"]],
+    jouer:[["eq","🎯 Chances"],["pre","🃏 Préflop"],["odds","🧮 Cotes"],["solv","🧠 Solveur river"]],
     tournoi:[["pf","⚡ Tapis ou fold"],["icm","🏆 ICM"]],
     analyser:[["jeu","📈 Mon jeu"],["rev","🔍 Revoir une main"],["vil","👥 Joueurs"],["ses","📒 Sessions"]],
     apprendre:[["tr","🎓 Cours et exercices"]]
@@ -2810,6 +2966,14 @@ function init(){
   $("rvPreSit").onchange=e=>{ rv.preSit=e.target.value; saveRv(); };
   $("rvTable").onchange=e=>{ rv.table=+e.target.value; saveRv(); renderRv(); };
   $("rvDepth").onchange=e=>{ rv.depth=+e.target.value; saveRv(); };
+  // solveur river
+  $("svRHp").innerHTML+=presetOpts(); $("svRVp").innerHTML+=presetOpts();
+  $("svRHp").onchange=e=>{ if(e.target.value){ solv.rH=PRESETS[e.target.value]; e.target.value=""; saveSolv(); renderSolv(); } };
+  $("svRVp").onchange=e=>{ if(e.target.value){ solv.rV=PRESETS[e.target.value]; e.target.value=""; saveSolv(); renderSolv(); } };
+  [["svRH","rH"],["svRV","rV"],["svPot","pot"],["svStack","stack"]].forEach(([id,k])=>$(id).addEventListener("input",e=>{ solv[k]=e.target.value; saveSolv(); if(k==="rH") $("svRHi").innerHTML=rangeInfo(solv.rH); if(k==="rV") $("svRVi").innerHTML=rangeInfo(solv.rV); }));
+  [["svOop","oop"],["svSize","size"]].forEach(([id,k])=>$(id).addEventListener("change",e=>{ solv[k]=e.target.value; saveSolv(); }));
+  $("svRun").onclick=runSolver;
+  renderSolv();
   { const c=photoCfg(); $("rvPhUrl").value=c.url; $("rvPhCode").value=c.code; }
   $("rvPhSave").onclick=()=>{ const url=$("rvPhUrl").value.trim(), code=$("rvPhCode").value.trim();
     if(url&&!/^https:\/\//.test(url)){ $("rvPhInfo").textContent="L'adresse doit commencer par https://"; return; }

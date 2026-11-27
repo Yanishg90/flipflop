@@ -168,7 +168,7 @@ details ul{padding-left:20px;margin:6px 0}
   <div class="col">
    <div class="card">
     <h2>Toi</h2>
-    <p class="help">Clique sur une case, puis choisis la carte. Re-clique sur une carte posée pour l'enlever.</p>
+    <p class="help">Touche une case, puis choisis la carte. Touche à nouveau une carte posée pour l'enlever.</p>
     <div id="heroBox"></div>
    </div>
    <div class="card">
@@ -540,12 +540,12 @@ details ul{padding-left:20px;margin:6px 0}
    <p>Quand il te reste moins de 15 grosses blindes, le jeu devient simple : <b>tapis ou se coucher</b>. L'onglet « Tapis ou fold » te donne les mains exactes.</p>
    <p>Près des places payées, perdre coûte plus cher que gagner ne rapporte (c'est l'<b>ICM</b>) : paie les tapis avec des mains plus fortes que d'habitude.</p>
    <button class="btn sec small" data-go="pf">S'entraîner →</button></details>
-  <details id="lexDetails"><summary>📖 Le lexique : tous les mots du poker expliqués</summary><dl id="lexique"></dl></details>
-  <div class="row"><button class="btn sec small" id="tourAgain">🧭 Revoir la visite guidée</button></div>
   <details><summary>10. Gérer son argent (bankroll)</summary>
    <p>Ne joue qu'avec de l'argent que tu peux perdre. Garde au moins <b>30 caves</b> pour le cash game (ex : 30 × 2 € = 60 € pour jouer en 2 € la cave) et <b>100 inscriptions</b> pour les tournois.</p>
    <p>Si tu perds plusieurs coups de suite et que tu t'énerves (« tilt »), <b>arrête la session</b>. Note toutes tes parties pour savoir si tu gagnes vraiment.</p>
    <button class="btn sec small" data-tab="ses">Mes sessions →</button></details>
+  <details id="lexDetails"><summary>📖 Le lexique : tous les mots du poker expliqués</summary><dl id="lexique"></dl></details>
+  <div class="row"><button class="btn sec small" id="tourAgain">🧭 Revoir la visite guidée</button></div>
  </div>
  </div>
 </section>
@@ -564,7 +564,7 @@ details ul{padding-left:20px;margin:6px 0}
    <div class="f"><label>Durée (heures)</label><input type="number" id="sH" min="0" step="0.25" value="1"></div>
    <div class="row"><button class="btn" id="sAdd">Enregistrer</button></div>
    <h3>💾 Sauvegarde de toutes mes données</h3>
-   <p class="help">Un seul fichier avec tout : tes parties, tes joueurs notés, tes mains revues et tes scores. Fais-le avant de réinstaller l'appli, ou pour passer de l'ordi au téléphone : « Sauvegarder » sur l'un, puis « Récupérer » le fichier sur l'autre. Rien n'est effacé : ce qui existe déjà est gardé.</p>
+   <p class="help">Un seul fichier avec tout : tes parties, tes joueurs notés, tes mains revues, tes mains importées et tes scores. Fais-le avant de réinstaller l'appli, ou pour passer de l'ordi au téléphone : « Sauvegarder » sur l'un, puis « Récupérer » le fichier sur l'autre. Rien n'est effacé : ce qui existe déjà est gardé.</p>
    <div class="row"><button class="btn sec small" id="sExp">Sauvegarder</button><button class="btn sec small" id="sImpB">Récupérer une sauvegarde</button><input type="file" id="sImp" accept=".json,application/json" hidden></div>
   </div>
   <div class="col">
@@ -755,7 +755,7 @@ const FACING = [
   {id:"bb_co", name:"Grosse blinde contre une relance du CO", short:"BB vs CO",
    raise:"TT+, AQs+, AKo, KQs, A5s, A4s, K8s, Q9s, 76s",
    call:"99-22, AJs-A6s, A3s-A2s, KJs-K9s, K7s-K5s, QJs-QTs, Q8s-Q6s, JTs-J7s, T9s-T7s, 98s-96s, 87s-85s, 75s, 65s-64s, 54s, AQo-A8o, A5o, KQo-K9o, QJo-Q9o, JTo-J9o, T9o"},
-  {id:"bb_utg", name:"Grosse blinde contre une relance UTG", short:"BB vs UTG",
+  {id:"bb_utg", name:"Grosse blinde contre une relance d'UTG", short:"BB vs UTG",
    raise:"QQ+, AKs, AKo, A5s, A4s",
    call:"JJ-22, AQs-A6s, A3s-A2s, KQs-K8s, QJs-Q9s, JTs-J8s, T9s-T8s, 98s-97s, 87s-86s, 76s-75s, 65s, 54s, AQo-ATo, KQo-KJo, QJo"},
   {id:"sb_btn", name:"Petite blinde contre une relance du bouton", short:"SB vs BTN",
@@ -763,7 +763,7 @@ const FACING = [
   {id:"btn_co", name:"Bouton contre une relance du CO", short:"BTN vs CO",
    raise:"TT+, AJs+, KQs, A5s, A4s, AQo+, K9s, Q9s",
    call:"99-22, ATs-A6s, KJs-KTs, QJs-QTs, JTs-J9s, T9s, 98s, 87s, 76s, 65s, AJo, KQo"},
-  {id:"co_utg", name:"CO contre une relance UTG", short:"CO vs UTG",
+  {id:"co_utg", name:"CO contre une relance d'UTG", short:"CO vs UTG",
    raise:"QQ+, AKs, AQs, AKo, A5s, KQs",
    call:"JJ-77, AJs-ATs, KJs, QJs, JTs, T9s, AQo"},
   {id:"bb_sb", name:"Grosse blinde contre une relance de la petite blinde", short:"BB vs SB",
@@ -783,7 +783,7 @@ const OPEN9 = {
   "UTG+2":"44+, A7s+, A5s-A3s, K9s+, Q9s+, J9s+, T9s, 98s, 87s, ATo+, KJo+",
   "LJ":OPEN.UTG, "HJ":OPEN.HJ, "CO":OPEN.CO, "BTN":OPEN.BTN, "SB":OPEN.SB
 };
-const POS_NAMES={"UTG":"UTG (premier à parler)","UTG+1":"UTG+1","UTG+2":"UTG+2","LJ":"LJ","HJ":"HJ","CO":"CO (avant le bouton)","BTN":"Bouton","SB":"Petite blinde"};
+const POS_NAMES={"UTG":"UTG (premier à parler)","UTG+1":"UTG+1","UTG+2":"UTG+2","LJ":"le LJ","HJ":"le HJ","CO":"le CO (juste avant le bouton)","BTN":"le bouton","SB":"la petite blinde"};
 const POS6=["UTG","HJ","CO","BTN","SB","BB"], POS9=["UTG","UTG+1","UTG+2","LJ","HJ","CO","BTN","SB","BB"];
 let tableSize=store.get("pgto_table",6)===9?9:6;
 const SCEN = [];
@@ -1087,9 +1087,10 @@ function computeOuts(heroC,bk,P){
     return {mode:"behind",outs:unseen.filter(c=>status([...bk,c])===2),u:unseen.length};
   }
   const cur=evalArr([...heroC,...bk])>>20;
+  const gap=cur-(evalArr(bk)>>20);
   return {mode:"improve",u:unseen.length,outs:unseen.filter(c=>{
     const nc=evalArr([...heroC,...bk,c])>>20; if(nc<=cur) return false;
-    return nc>(evalArr([...bk,c])>>20);
+    return nc-(evalArr([...bk,c])>>20)>gap;
   })};
 }
 function outsHtml(o,bl){
@@ -1306,12 +1307,12 @@ function rvAnalyze(){
     const eq=quickEquity(H,bk,rangeSpec), eqR=realSpec?quickEquity(H,bk,realSpec):null;
     if(eq===null){ add("info",STREETS[s],"Aucune main de sa range n'est possible avec ces cartes : vérifie la range."); break; }
     const sc2=evalArr([...H,...bk]), k=kept(bk);
-    const eqTxt=`Tu avais <b>${CAT[sc2>>20]}</b>${drawLabel(draws([...H,...bk]),sc2>>20,bk.length)}. Tes chances contre sa range : <b>${pc(eq)}</b>${k<0.98?` <span class="help">(range resserrée : il garde environ ${pc(k,0)} de ses mains de départ)</span>`:""}${eqR!==null?` (contre ses vraies cartes : ${pc(eqR)})`:""}.`;
+    const eqTxt=`Ta main : <b>${CAT[sc2>>20]}</b>${drawLabel(draws([...H,...bk]),sc2>>20,bk.length)}. Tes chances contre sa range : <b>${pc(eq)}</b>${k<0.98?` <span class="help">(range resserrée : il garde environ ${pc(k,0)} de ses mains de départ)</span>`:""}${eqR!==null?` (contre ses vraies cartes : ${pc(eqR)})`:""}.`;
     if(st.act==="fold") stopped=true;
     if(pot===null||pot<=0){ add("info",STREETS[s],eqTxt+"<br>Indique le pot de ce tour pour avoir un verdict."); continue; }
     const more=s<2; let v="info",t="",x="";
     if(ob>0){
-      const need=ob/(pot+2*ob), needTxt=`Il misait ${fr(ob,0)} dans un pot de ${fr(pot,0)} : il te fallait ${pc(need)} de chances.`;
+      const need=ob/(pot+2*ob), needTxt=`Il misait ${fmtAmt(ob)} dans un pot de ${fmtAmt(pot)} : il te fallait ${pc(need)} de chances.`;
       if(st.act==="call"){
         if(eq>=need){v="good";t="Bon call";}
         else if(more&&eq>=need-0.08){v="ok";t="Call limite";x="Rentable seulement si tu gagnes encore de l'argent quand tu touches (cotes implicites).";}
@@ -2139,7 +2140,7 @@ function solvePF(S,a,T=500){
 const freqPct = fr_ => { let n=0; for(let i=0;i<169;i++) n+=fr_[i]*nCombos(GRID[i]); return n/1326; };
 function freqStyle(f,col){ return f<=0?"background:#4a1c22;color:#e9c9cc":`background:linear-gradient(to top, ${col} ${Math.round(f*100)}%, #4a1c22 ${Math.round(f*100)}%);color:${f>0.5?"#04140a":"#fff"}`; }
 // places pour faire tapis : [joueurs encore à parler derrière toi, nom]
-const PF_SEATS=[[1,"Petite blinde"],[2,"Bouton"],[3,"CO"],[4,"HJ"],[5,"LJ (UTG à 6 joueurs)"],[6,"UTG+2"],[7,"UTG+1"],[8,"UTG à 9 joueurs"]];
+const PF_SEATS=[[1,"Petite blinde"],[2,"Bouton"],[3,"CO"],[4,"HJ"],[5,"LJ, ou UTG à 6 joueurs"],[6,"UTG+2"],[7,"UTG+1"],[8,"UTG à 9 joueurs"]];
 // tapis depuis une place avec k joueurs derrière (approximation : chaque joueur derrière paie selon son meilleur choix)
 function solvePushSeat(S,a,k,n,T=80){
   const N=169, hu=solvePF(S,a);
@@ -2176,7 +2177,7 @@ function runPF(){
     drawGrid($("pfGridP"),(l,i)=>({style:freqStyle(pfRes.push[i],"var(--acc)")}));
     drawGrid($("pfGridC"),(l,i)=>({style:freqStyle(pfRes.call[i],"var(--acc2)")}));
     $("pfTitleP").textContent=`${place} : faire tapis`;
-    $("pfTitleC").textContent=k===1?"Grosse blinde : payer le tapis":`Grosse blinde : payer un tapis du ${place.split(" ")[0]}`;
+    $("pfTitleC").textContent=k===1?"Grosse blinde : payer le tapis":`Grosse blinde : payer un tapis du ${place.split(/[ ,]/)[0]}`;
     $("pfInfoP").textContent=`Tapis avec ${pc(freqPct(pfRes.push))} des mains, le reste se couche${k>1?` (${k} joueurs derrière toi)`:""}.`;
     $("pfInfoC").textContent=`Paie avec ${pc(freqPct(pfRes.call))} des mains face à ce tapis.`;
     $("pfStatus").textContent=`${k===1?"Équilibre exact":"Approximation"} pour ${fr(S,1)} grosses blindes${a?` avec une ante de ${fr(a,2)} bb`:""}, depuis : ${place}.`;
@@ -2257,9 +2258,9 @@ function calcIcmCall(st,pay,pool){
   const me=+$("icMe").value, him=+$("icHim").value;
   if(me===him){ out.innerHTML='<p class="err">Choisis deux joueurs différents.</p>'; return; }
   const D=num("icDead"), e=Math.min(100,num("icEq"))/100, x=Math.min(st[me],st[him]), bb=num("icmBB");
-  $("icDeadBB").textContent=bb&&D?`= ${fr(D/bb,1)} grosses blindes`:"";
+  $("icDeadBB").textContent=bb&&D?`= ${fr(D/bb,1)} ${D/bb>=2?"grosses blindes":"grosse blinde"}`:"";
   if(!x||!pool){ out.innerHTML='<p class="help">Entre les tapis et les prix plus haut.</p>'; return; }
-  const stakeTxt=`<p class="help">En jeu : ${x.toLocaleString("fr-FR")} jetons${bb?` (${fr(x/bb,1)} grosses blindes)`:""}.</p>`;
+  const stakeTxt=`<p class="help">En jeu : ${x.toLocaleString("fr-FR")} jetons${bb?` (${fr(x/bb,1)} ${x/bb>=2?"grosses blindes":"grosse blinde"})`:""}.</p>`;
   const W=st.slice(); W[me]+=x+D; W[him]-=x;      // tu paies et tu gagnes
   const L=st.slice(); L[me]-=x; L[him]+=x+D;      // tu paies et tu perds
   const F=st.slice(); F[him]+=D;                  // tu te couches
@@ -2623,7 +2624,7 @@ function init(){
     $("sIn").value=""; $("sOut").value=""; $("sNotes").value=""; renderSessions();
   };
   $("sExp").onclick=()=>{
-    const backup={app:"flipflop",version:1,date:today(),sessions,villains,hands:rvList,scores:trScore};
+    const backup={app:"flipflop",version:2,date:today(),sessions,villains,hands:rvList,scores:trScore,imported:hhHands};
     store.set("pgto_lastbackup",Date.now()); const bn=$("backupBanner"); if(bn) bn.remove();
     const a=document.createElement("a");
     a.href=URL.createObjectURL(new Blob([JSON.stringify(backup)],{type:"application/json"}));
@@ -2642,11 +2643,12 @@ function init(){
       const nS=merge(sessions,b.sessions,s=>typeof s.in==="number"&&typeof s.out==="number");
       const nV=merge(villains,b.villains,v=>typeof v.name==="string");
       const nH=merge(rvList,b.hands,h=>h.data&&Array.isArray(h.hero));
+      const nI=merge(hhHands,b.imported,h=>h&&h.id&&Array.isArray(h.seats)&&Array.isArray(h.acts)); if(nI){ hhHands.sort((a,c)=>a.ts-c.ts); store.set("pgto_hh",hhHands); renderHH(); }
       if(b.scores&&typeof b.scores==="object") for(const [k,v] of Object.entries(b.scores)) if(!trScore[k]||(v&&v.tot>trScore[k].tot)) trScore[k]=v;
       rvList.sort((x,y)=>y.id-x.id);
       store.set("pgto_sessions",sessions); store.set("pgto_villains",villains); store.set("pgto_rvlist",rvList); store.set("pgto_tr",trScore);
       renderSessions(); renderVillains(); renderRvList(); renderRv(); showTrScore();
-      alert(`Sauvegarde récupérée ✅\n${nS} partie(s), ${nV} joueur(s), ${nH} main(s) revue(s) ajoutés.`);
+      alert(`Sauvegarde récupérée ✅\n${nS} partie(s), ${nV} joueur(s), ${nH} main(s) revue(s) et ${nI} main(s) importée(s) ajoutés.`);
     }).catch(()=>alert("Ce fichier n'est pas une sauvegarde Flip&Flop.")).finally(()=>e.target.value="");
   };
 

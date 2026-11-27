@@ -26,7 +26,20 @@ h1{margin:0;font-size:20px;line-height:1.1} h1 span{color:var(--acc)}
 nav{display:flex;gap:6px;overflow-x:auto;padding:10px 0;max-width:1150px;margin:0 auto;scrollbar-width:thin}
 nav button{flex:0 0 auto;background:var(--panel);color:var(--txt);border:1px solid var(--line);padding:8px 12px;border-radius:8px;cursor:pointer;font-size:14px;white-space:nowrap}
 nav button.on{background:var(--acc);color:#04140a;border-color:var(--acc);font-weight:700}
-main{max-width:1150px;margin:0 auto;padding:16px 16px calc(100px + env(safe-area-inset-bottom))}
+main{max-width:1150px;margin:0 auto;padding:16px 16px calc(30px + env(safe-area-inset-bottom))}
+#mainnav{display:none!important}
+.brand{cursor:pointer}
+#crumb{display:flex;align-items:center;gap:10px;max-width:1150px;margin:0 auto;padding:8px 0}
+#crumb[hidden]{display:none}
+#crumb b{font-size:16px}
+.home{display:grid;gap:12px;max-width:560px;margin:0 auto}
+.home .hq{display:flex;align-items:center;gap:14px;text-align:left;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;color:var(--txt);cursor:pointer;font-family:inherit;width:100%}
+.home .hq:hover{border-color:var(--acc)}
+.home .hq .e{font-size:34px;line-height:1}
+.home .hq b{display:block;font-size:17px;color:var(--txt)}
+.home .hq small{display:block;color:var(--mute);font-size:13px;margin-top:2px}
+.home details{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 16px}
+.home .more{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
 #nav:empty{display:none}
 #mainnav{position:fixed;left:0;right:0;bottom:0;z-index:8;display:grid;grid-template-columns:repeat(4,1fr);background:#0a120d;border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom);box-shadow:0 -4px 14px #0008}
 #mainnav button{background:none;border:none;color:var(--mute);padding:8px 2px 10px;font-size:13px;font-weight:600;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;font-family:inherit}
@@ -173,7 +186,8 @@ details ul{padding-left:20px;margin:6px 0}
     <div class="brand"><h1><img src="icon-192.png" alt="" class="logo">Flip<span>&amp;</span>Flop</h1><div class="tagline">ton coach de poker GTO</div></div>
     <button class="btn small" id="installBtn">📲 Installer l'appli</button>
   </div>
-  <nav id="nav"></nav>
+  <nav id="nav" hidden></nav>
+  <div id="crumb" hidden><button class="btn sec small" id="goHome">← Accueil</button><b id="crumbT"></b></div>
 </header>
 <nav id="mainnav">
   <button data-g="jouer"><span>🎯</span>Jouer</button>
@@ -183,6 +197,26 @@ details ul{padding-left:20px;margin:6px 0}
 </nav>
 
 <main>
+<!-- ================= ACCUEIL ================= -->
+<section id="t-home" class="tab">
+ <div class="home">
+  <p class="intro" style="text-align:center;margin:0">Que veux-tu faire ?</p>
+  <button class="hq" data-tab="pre"><span class="e">🃏</span><span><b>J'ai une main : je la joue ?</b><small>Pose tes cartes, l'appli te dit : relance, suis ou couche-toi.</small></span></button>
+  <button class="hq" data-tab="eq"><span class="e">🎯</span><span><b>Mes chances de gagner</b><small>Ta main contre celle de l'adversaire, à chaque carte.</small></span></button>
+  <button class="hq" data-tab="pf"><span class="e">⚡</span><span><b>Tournoi : tapis ou pas ?</b><small>Quand il te reste peu de jetons (Spin &amp; Go aussi).</small></span></button>
+  <button class="hq" data-tab="jeu"><span class="e">📈</span><span><b>Revoir mes parties</b><small>Charge tes mains Winamax : tes erreurs et tes gains.</small></span></button>
+  <button class="hq" data-tab="tr"><span class="e">🎓</span><span><b>Apprendre</b><small>Cours simples et exercices corrigés.</small></span></button>
+  <details><summary>🧰 Plus d'outils</summary>
+   <div class="more">
+    <button class="btn sec small" data-tab="solv">🧠 Solveur</button>
+    <button class="btn sec small" data-tab="rev">🔍 Revoir une main</button>
+    <button class="btn sec small" data-tab="odds">🧮 Cotes</button>
+    <button class="btn sec small" data-tab="icm">🏆 ICM</button>
+    <button class="btn sec small" data-tab="vil">👥 Joueurs</button>
+    <button class="btn sec small" data-tab="ses">📒 Sessions</button>
+   </div></details>
+ </div>
+</section>
 <!-- ================= CHANCES ================= -->
 <section id="t-eq" class="tab">
  <p class="intro">Tes chances de gagner la main, contre une ou plusieurs mains adverses, à n'importe quel moment du coup.</p>
@@ -3335,11 +3369,10 @@ function init(){
   };
   const groupOf=t=>Object.keys(GROUPS).find(g=>GROUPS[g].some(x=>x[0]===t))||"jouer";
   const lastTab=store.get("pgto_lasttab",{});
+  const TITLES=Object.fromEntries(Object.values(GROUPS).flat());
   const showTab=t=>{
-    if(!document.getElementById("t-"+t)) t="eq";
-    const g=groupOf(t); lastTab[g]=t; store.set("pgto_lasttab",lastTab);
-    $("nav").innerHTML=GROUPS[g].length>1?GROUPS[g].map(([id,name])=>`<button data-t="${id}" class="${id===t?"on":""}">${name}</button>`).join(""):"";
-    document.querySelectorAll("#mainnav button").forEach(b=>b.classList.toggle("on",b.dataset.g===g));
+    if(!document.getElementById("t-"+t)) t="home";
+    $("crumb").hidden=t==="home"; $("crumbT").textContent=TITLES[t]||"";
     document.querySelectorAll(".tab").forEach(s=>s.classList.toggle("on",s.id==="t-"+t));
     store.set("pgto_tab",t);
     if(t==="tr"&&!trQ) newQ();
@@ -3382,7 +3415,9 @@ function init(){
   });
   $("nav").addEventListener("click",e=>{ const b=e.target.closest("[data-t]"); if(b){ showTab(b.dataset.t); window.scrollTo(0,0); } });
   document.querySelectorAll("#mainnav button").forEach(b=>b.onclick=()=>{ const g=b.dataset.g; showTab(lastTab[g]||GROUPS[g][0][0]); window.scrollTo(0,0); });
-  showTab(store.get("pgto_tab","eq"));
+  showTab("home");
+  const goHome=()=>{ showTab("home"); window.scrollTo(0,0); };
+  $("goHome").onclick=goHome; document.querySelector(".brand").onclick=goHome;
 
   document.addEventListener("click",e=>{
     const t=e.target;
@@ -3403,7 +3438,7 @@ function init(){
     const qb=t.closest("[data-q]"); if(qb){ e.preventDefault(); e.stopPropagation(); showGloss(qb.dataset.q); return; }
     if(t.id==="trPrep"){ t.disabled=true; if(!WM) buildWM(); computeEqm(p=>{ const e=$("trPrepP"); if(e) e.textContent=Math.round(p*100)+" %"; }, newQ); }
     if(t.dataset.go){ $("trMode").value=t.dataset.go; newQ(); $("trCard").scrollIntoView({behavior:"smooth"}); }
-    if(t.dataset.tab){ showTab(t.dataset.tab); window.scrollTo(0,0); }
+    const tb=t.closest("[data-tab]"); if(tb){ showTab(tb.dataset.tab); window.scrollTo(0,0); }
     if(t.dataset.rvopen){ const x=rvList.find(r=>String(r.id)===t.dataset.rvopen); if(x){ rv=JSON.parse(JSON.stringify(x.data)); saveRv(); renderRv(); rvAnalyze(); window.scrollTo(0,0); } }
     if(t.dataset.rvdel&&confirm("Supprimer cette main enregistrée ?")){ rvList=rvList.filter(r=>String(r.id)!==t.dataset.rvdel); store.set("pgto_rvlist",rvList); renderRvList(); }
     const vs=t.closest("[data-vsel]");
@@ -3619,12 +3654,9 @@ function init(){
 
   // visite guidée (au premier lancement, ou depuis Apprendre)
   const TOUR=[
-    ["👋","Bienvenue sur Flip&Flop","Ton assistant pour progresser au poker. L'appli a 4 parties : ce sont les 4 boutons en bas de l'écran."],
+    ["👋","Bienvenue sur Flip&Flop","Ton coach pour progresser au poker. Tout part de l'accueil : touche ce que tu veux faire. Pour revenir, touche « ← Accueil » en haut."],
     ["⚠️","Pour étudier, pas pendant le jeu","Flip&Flop sert à préparer et à revoir tes parties. N'ouvre jamais l'appli pendant une partie en ligne : Winamax interdit les calculateurs pendant le jeu, et tu risquerais la fermeture de ton compte."],
-    ["🎯","Jouer","Tes chances de gagner une main, les mains à jouer avant le flop selon ta place, et si payer une mise est rentable."],
-    ["🏆","Tournoi","Quand faire tapis avec peu de jetons, et ce que valent vraiment tes jetons en euros (ICM)."],
-    ["🔍","Analyser","Après la partie : revois tes mains pour trouver tes erreurs, note les joueurs, et suis tes gains."],
-    ["🎓","Apprendre","Des cours simples et des exercices corrigés. Partout dans l'appli, touche les petits « ? » pour comprendre un mot."]
+    ["❓","Un mot inconnu ?","Partout dans l'appli, touche les petits « ? » pour comprendre un mot."]
   ];
   let tourStep=0;
   const drawTour=()=>{ const [e,t,d]=TOUR[tourStep]; $("tourE").textContent=e; $("tourT").textContent=t; $("tourD").textContent=d;

@@ -464,7 +464,7 @@ details ul{padding-left:20px;margin:6px 0}
 <!-- ================= TAPIS OU FOLD ================= -->
 <section id="t-pf" class="tab">
  <p class="intro">Fin de tournoi, petit tapis : quand faire tapis, et quand payer un tapis. <button class="q" data-q="nash" aria-label="Explication">?</button> Depuis la petite blinde, c'est le <b>vrai équilibre GTO</b> (équilibre de Nash). Depuis les autres places, c'est une très bonne approximation.</p>
- <p class="help">🎰 <b>Spin &amp; Go :</b> choisis « Bouton à 3 joueurs ». Comme seul le gagnant touche le prix, tes jetons valent exactement leur poids : ce calcul en jetons est le bon, pas besoin d'ICM.</p>
+ <p class="help">🎰 <b>Spin &amp; Go :</b> choisis « Bouton à 3 joueurs » (ou « Petite blinde » pour le tête-à-tête final). Pour t'entraîner : Apprendre → Exercices → « Spin &amp; Go ». Comme seul le gagnant touche le prix, tes jetons valent exactement leur poids : ce calcul en jetons est le bon, pas besoin d'ICM.</p>
  <div class="card">
   <div class="f"><label>Ta place (personne n'a joué avant toi)</label><select id="pfSeat"></select></div>
   <div class="row">
@@ -537,6 +537,7 @@ details ul{padding-left:20px;margin:6px 0}
     <option value="outs">Outs : combien de cartes t'aident ?</option>
     <option value="odds">Cotes : payer ou se coucher ?</option>
     <option value="pf">Tournoi : tapis ou se coucher ?</option>
+    <option value="spin">Spin &amp; Go : tapis, payer ou se coucher ?</option>
   </select></div>
   <div id="trQ"></div>
   <div class="trbtns" id="trBtns"></div>
@@ -892,6 +893,18 @@ const FACING3={
          c:"44-22, K8s-K2s, Q9s-Q4s, J9s-J6s, T9s-T6s, 98s-96s, 87s-85s, 76s-75s, 65s-64s, 54s, A6o-A2o, K9o-K6o, QTo-Q8o, JTo-J8o, T9o-T8o, 98o"},
       sb_btn:{s:"44+, A2s+, K8s+, Q9s+, J9s+, T9s, A7o+, KTo+, QJo",c:""}}
 };
+// tête-à-tête final d'un Spin & Go : le bouton est aussi la petite blinde
+const HU={
+  100:{sb:{raise:"22+, A2s+, K2s+, Q2s+, J2s+, T2s+, 93s+, 84s+, 74s+, 63s+, 53s+, 43s, A2o+, K2o+, Q4o+, J6o+, T7o+, 97o+, 87o"},
+       bb:{raise:"77+, A8s+, A5s-A2s, K9s+, Q9s+, J9s+, T9s, K5s, Q6s, ATo+, KJo+",
+           call:"66-22, A7s-A6s, K8s-K6s, K4s-K2s, Q8s-Q7s, Q5s-Q2s, J8s-J2s, T8s-T3s, 98s-94s, 87s-84s, 76s-74s, 65s-63s, 54s-53s, 43s, A9o-A2o, KTo-K2o, QJo-Q2o, JTo-J5o, T9o-T6o, 98o-96o, 87o-86o, 76o-75o, 65o, 54o"}},
+  40:{sb:{raise:"22+, A2s+, K2s+, Q2s+, J3s+, T5s+, 95s+, 85s+, 74s+, 64s+, 53s+, 43s, A2o+, K2o+, Q5o+, J7o+, T7o+, 97o+, 87o"},
+      bb:{raise:"88+, A9s+, A5s-A4s, KTs+, QJs, ATo+, KQo",
+          call:"77-22, A8s-A6s, A3s-A2s, K9s-K2s, QTs-Q2s, JTs-J4s, T9s-T5s, 98s-95s, 87s-85s, 76s-74s, 65s-64s, 54s, A9o-A2o, KJo-K3o, QJo-Q6o, JTo-J7o, T9o-T7o, 98o-97o, 87o, 76o"}},
+  20:{sb:{r:"77+, A2s+, K2s+, Q2s+, J4s+, T6s+, 96s+, 86s+, 75s+, 65s, 54s, A9o+, K2o+, Q5o+, J7o+, T7o+, 97o+, 87o",s:"22-66, A8o-A2o"},
+      bb:{s:"55+, A2s+, K8s+, QTs+, JTs, A5o+, KTo+, QJo",
+          c:"44-22, K7s-K2s, Q9s-Q2s, J9s-J4s, T9s-T6s, 98s-96s, 87s-85s, 76s-75s, 65s-64s, 54s, A4o-A2o, K9o-K4o, QTo-Q7o, JTo-J8o, T9o-T8o, 98o"}}
+};
 const DEPTHS=[[100,"100 grosses blindes (cash game, début de tournoi)"],[40,"Environ 40 grosses blindes (milieu de tournoi)"],[20,"Environ 20 grosses blindes (fin de tournoi)"]];
 let preDepth=[100,40,20].includes(store.get("pgto_depth",100))?store.get("pgto_depth",100):100;
 const sfx=d=>d&&d!==100?"@"+d:"";
@@ -914,6 +927,13 @@ for(const d of [100,40,20]) for(const [id,g] of Object.entries(FACING3[d])){
   const nm=id==="bb_btn"?"Grosse blinde contre une relance du bouton (3 joueurs)":"Petite blinde contre une relance du bouton (3 joueurs)";
   SCEN.push({id:id+"3"+sfx(d), table:3, depth:d, open:false, name:nm, short:id==="bb_btn"?"BB vs BTN (3)":"SB vs BTN (3)",
     raise:parseRange(g.raise||"").set, call:parseRange(g.call||g.c||"").set, shove:parseRange(g.s||"").set});
+}
+for(const d of [100,40,20]) for(const side of ["sb","bb"]){
+  const g=HU[d][side];
+  SCEN.push({id:"hu_"+side+"3"+sfx(d), table:3, depth:d, open:side==="sb", hu:true,
+    name:side==="sb"?"Tête-à-tête final : tu es au bouton (petite blinde)":"Tête-à-tête final : grosse blinde contre une petite relance",
+    short:side==="sb"?"Tête-à-tête, bouton":"Tête-à-tête, grosse blinde",
+    raise:parseRange(g.raise||g.r||"").set, call:parseRange(g.call||g.c||"").set, shove:parseRange(g.s||"").set});
 }
 const scenList = () => SCEN.filter(s=>(tableSize===3?(s.table===3||(!s.table&&["bb_sb","vs3b_lp"].includes(s.id.split("@")[0]))):(!s.table||s.table===tableSize))&&s.depth===preDepth);
 const actionOf = (s,cls) => s.shove&&s.shove.has(cls)?"shove":s.raise.has(cls)?"raise":(s.call.has(cls)?"call":"fold");
@@ -1875,7 +1895,50 @@ function hhInfo(h){
       }
     }
   }
+  // --- Spin & Go, petit tapis (moins de 15 bb) : comparer au « tapis ou fold » à 3 joueurs ou en tête-à-tête
+  if(tt===3&&!dep&&eff>=1&&heroFirst&&EQM&&(n===2||n===3)){
+    if(!WM) buildWM();
+    const S=Math.max(2,Math.min(14,Math.round(eff))), isAll=e=>e&&e[2]==="r"&&e[4]>=(h.seats[e[1]][2]-h.ante)*0.95;
+    const mine=pre.find(x=>x[1]===H), shove=isAll(mine), opEntry=I.opener>=0?pre.find(x=>x[1]===I.opener&&x[2]==="r"):null;
+    let arr=null, kind=null;
+    if(n===3){
+      const r=spinCache[S]||(spinCache[S]=solveSpin(S,0,120));
+      if(I.spot==="open"&&I.pos==="BTN"&&(shove||heroFirst==="f")){ arr=r.push; kind="push"; }
+      else if(I.spot==="raised"&&pos[I.opener]==="BTN"&&isAll(opEntry)&&(I.pos==="SB"||(I.pos==="BB"&&!pre.some(x=>x[1]!==H&&x[1]!==I.opener&&x[2]!=="f")))){ arr=I.pos==="SB"?r.callSB:r.call; kind="call"; }
+    } else {
+      const r=pfCache[S]||(pfCache[S]=solvePF(S,0));
+      if(I.spot==="open"&&I.pos==="SB"&&(shove||heroFirst==="f")){ arr=r.push; kind="push"; }
+      else if(I.spot==="raised"&&I.pos==="BB"&&isAll(opEntry)){ arr=r.call; kind="call"; }
+    }
+    if(arr&&(kind==="push"||heroFirst!=="r")){
+      const f=arr[GIDX[I.cls]], did=kind==="push"?(shove?"push":"fold"):(heroFirst==="c"||heroFirst==="r"?"call":"fold"), rec=f>=0.5?kind:"fold";
+      I.spin={S,did,rec,f,ok:did===rec||(f>0.3&&f<0.7),hu:n===2};
+    }
+  }
   hhCache.set(h.id,I); return I;
+}
+const isSpinSum=x=>x.players===3||/spin|expresso/i.test(x.name);
+function hhSpinCard(list){
+  const sums=hhSums.filter(isSpinSum), hands=list.filter(h=>h.tour&&h.max===3);
+  if(!sums.length&&!hands.length) return "";
+  const eur=v=>(v<0?"−":"")+fr(Math.abs(v),2).replace(/,00$/,"")+" €";
+  const cost=sums.reduce((a,x)=>a+x.cost,0), won=sums.reduce((a,x)=>a+x.prize+x.bounty,0), wins=sums.filter(x=>x.place===1).length;
+  const mult=sums.filter(x=>x.cost&&x.prizepool).map(x=>x.prizepool/x.cost), avgM=mult.length?mult.reduce((a,b)=>a+b,0)/mult.length:0;
+  const graded=hands.map(h=>[h,hhInfo(h).spin]).filter(x=>x[1]), errs=graded.filter(x=>!x[1].ok).map(x=>x[0]);
+  const loose=graded.filter(x=>!x[1].ok&&x[1].rec==="fold").length, tight=graded.length-graded.filter(x=>x[1].ok).length-loose;
+  return `<div class="card" style="margin-top:16px"><h2>🎰 Mes Spin &amp; Go</h2>
+    <div class="kpi">
+      ${sums.length?`<div><small>Spin joués</small><b>${sums.length}</b><small>avec leur résumé importé</small></div>
+      <div><small>Victoires</small><b>${pc(wins/sums.length,0)}</b><small>${wins} sur ${sums.length}</small></div>
+      <div><small>Bénéfice</small><b style="color:${won-cost>=0?"var(--acc)":"var(--bad)"}">${won-cost>=0?"+":""}${eur(won-cost)}</b><small>${eur(won)} gagnés pour ${eur(cost)} misés</small></div>
+      ${avgM?`<div><small>Multiplicateur moyen</small><b>× ${fr(avgM,1)}</b><small>prix ÷ mise</small></div>`:""}`:""}
+      ${hands.length?`<div><small>Tapis ou fold vérifiés</small><b style="color:${errs.length?"var(--acc2)":"var(--acc)"}">${graded.length?pc(errs.length/graded.length,0):"—"}</b><small>${errs.length} erreur${errs.length>1?"s":""} sur ${graded.length} décisions sous 15 bb</small></div>`:""}
+    </div>
+    <p class="help" style="margin-top:10px">Pour être gagnant en Spin &amp; Go, il faut gagner un peu plus d'un tournoi sur trois (le site garde une petite part des mises). Avec les multiplicateurs, les résultats varient énormément : juge-toi sur au moins 200 Spin.</p>
+    ${!EQM&&hands.length?`<p class="note">Pour vérifier tes décisions « tapis ou fold », ouvre d'abord une fois Tournoi → Tapis ou fold (le calcul se prépare en 10 secondes), puis reviens ici.</p>`:""}
+    ${graded.length?`<p class="help">Sous 15 grosses blindes, chaque décision du bouton (tapis ou se coucher) et des blindes face à un tapis du bouton est comparée au calcul « Tapis ou fold » à 3 joueurs, ou en tête-à-tête à la fin.${loose?` <b>${loose}</b> fois tu as joué une main trop faible.`:""}${tight?` <b>${tight}</b> fois tu t'es couché avec une main qu'il fallait jouer.`:""}</p>
+      ${errs.length?`<details><summary>Voir mes erreurs de tapis ou fold : ${errs.length}</summary>${hhRows(errs.slice(0,15))}</details>`:'<p>Aucune erreur de tapis ou fold 👏</p>'}`:""}
+  </div>`;
 }
 
 // statistiques de toi sur un groupe de mains
@@ -1960,7 +2023,7 @@ function renderHH(){
     <div class="grid2" style="margin-top:16px">
       <div class="card"><h2>📈 Évolution de mes gains</h2>${hhGraph(list)}</div>
       <div class="card"><h2>🏆 Mes tournois et sessions</h2>${hhEvents(list)}</div>
-    </div>${F.type==="cash"?"":hhSumCard()}
+    </div>${F.type==="cash"?"":hhSumCard()+hhSpinCard(list)}
     <div class="grid2" style="margin-top:16px"><div class="col">
     <div class="card"><h2>📊 Mes statistiques <button class="q" data-q="vpip">?</button></h2>
       <div class="kpi"><div><small>Mains analysées</small><b>${S.n}</b><small>table de ${tt} joueurs surtout</small></div>
@@ -2856,7 +2919,7 @@ let trScore=store.get("pgto_tr",{});
 function randClass(){ const a=(rnd()*52)|0; let b; do b=(rnd()*52)|0; while(b===a); return classOf(a,b); }
 function classFrom(set){ const arr=[]; set.forEach(c=>{ for(let i=0;i<nCombos(c);i++) arr.push(c); }); return arr[(rnd()*arr.length)|0]; }
 function cardsOf(cls){ const cb=COMBOS[GIDX[cls]]; return cb[(rnd()*cb.length)|0]; }
-const pfCache={};
+const pfCache={}, spinCache={};
 function dealN(n){ const d=[]; while(d.length<n){ const c=(rnd()*52)|0; if(!d.includes(c)) d.push(c); } return d; }
 function numOptions(n){
   const s=new Set([n]), c=[n-4,n-3,n-2,n-1,n+1,n+2,n+3,n+4,n+6].filter(x=>x>0);
@@ -2933,6 +2996,29 @@ function newQ(){
     $("trQ").innerHTML=`<p class="trq">Les deux joueurs sont à tapis avant le flop. <b>Quelles sont les chances de la main 1 ?</b></p>
       <div class="row" style="gap:18px"><div><p class="help">Main 1</p>${cardRow(A,"sm")}</div><div><p class="help">Main 2</p>${cardRow(B,"sm")}</div></div>`;
     $("trBtns").innerHTML=[...s].sort((a,b)=>a-b).map(o=>`<button class="btn sec" data-ans="${o}">≈ ${o} %</button>`).join("");
+  } else if(m==="spin"){
+    if(!EQM){
+      trQ=null;
+      $("trQ").innerHTML=`<p>Pour cet exercice, Flip&amp;Flop doit d'abord préparer ses calculs de tapis (10 à 20 secondes, une seule fois). <span id="trPrepP"></span></p>`;
+      $("trBtns").innerHTML=`<button class="btn" id="trPrep">Préparer</button>`; return;
+    }
+    if(!WM) buildWM();
+    let S,role,cls,f,res,arr,tries=0;
+    do{ S=[6,8,10,12,15][(rnd()*5)|0]; role=["btn","sb","bb","hu","hubb"][(rnd()*5)|0]; cls=randClass();
+        if(role==="hu"||role==="hubb"){ res=pfCache[S]||(pfCache[S]=solvePF(S,0)); arr=role==="hu"?res.push:res.call; }
+        else { res=spinCache[S]||(spinCache[S]=solveSpin(S,0,150)); arr=role==="btn"?res.push:role==="sb"?res.callSB:res.call; }
+        f=arr[GIDX[cls]]; }
+    while(f>0.15&&f<0.85&&++tries<60);
+    const yes=role==="btn"||role==="hu"?"push":"call";
+    const Q={btn:["Spin &amp; Go, 3 joueurs. Tu es au <b>bouton</b>, personne n'a joué avant toi : tapis ou tu te couches ?","le bouton fait tapis"],
+      sb:["Spin &amp; Go, 3 joueurs. Le bouton fait tapis. Tu es <b>petite blinde</b> (la grosse blinde parle encore après toi) : tu paies ou tu te couches ?","la petite blinde paie"],
+      bb:["Spin &amp; Go, 3 joueurs. Le bouton fait tapis, la petite blinde se couche. Tu es <b>grosse blinde</b> : tu paies ou tu te couches ?","la grosse blinde paie"],
+      hu:["Spin &amp; Go, <b>tête-à-tête final</b>. Tu es au bouton (petite blinde) : tapis ou tu te couches ?","au bouton, on fait tapis"],
+      hubb:["Spin &amp; Go, <b>tête-à-tête final</b>. L'adversaire fait tapis. Tu es <b>grosse blinde</b> : tu paies ou tu te couches ?","la grosse blinde paie"]}[role];
+    trQ={m,ans:f>=0.5?yes:"fold",why:`À ${S} grosses blindes, ${Q[1]} avec ${pc(freqPct(arr))} des mains. ${cls} ${f>=0.5?"en fait partie":"n'en fait pas partie"}.`};
+    $("trQ").innerHTML=`<p class="trq">Tu as <b>${S} grosses blindes</b>.<br>${Q[0]}</p>
+      ${cardRow(cardsOf(cls))}<p class="help">Ta main : ${cls}</p>`;
+    $("trBtns").innerHTML=(yes==="push"?`<button class="btn" data-ans="push">Tapis !</button>`:`<button class="btn" data-ans="call">Payer</button>`)+`<button class="btn sec" data-ans="fold">Se coucher</button>`;
   } else if(m==="pf"){
     if(!EQM){
       trQ=null;
@@ -3181,7 +3267,7 @@ function init(){
   $("preHand").onkeydown=e=>{ if(e.key==="Enter") $("preCheck").click(); };
 
   // tapis ou fold
-  $("pfSeat").innerHTML='<optgroup label="Spin &amp; Go (3 joueurs)"><option value="spin">Bouton à 3 joueurs (Spin &amp; Go)</option><option value="spinsb">Petite blinde à 3 joueurs (le bouton s\'est couché)</option></optgroup><optgroup label="Tournoi classique">'+PF_SEATS.map(([k,name])=>`<option value="${k}">${name}${k>1?` (${k} joueurs derrière)`:" (face à la grosse blinde)"}</option>`).join("")+'</optgroup>';
+  $("pfSeat").innerHTML='<optgroup label="Spin &amp; Go (3 joueurs)"><option value="spin">Bouton à 3 joueurs (Spin &amp; Go)</option><option value="spinsb">Petite blinde : le bouton s\'est couché, ou tête-à-tête final</option></optgroup><optgroup label="Tournoi classique">'+PF_SEATS.map(([k,name])=>`<option value="${k}">${name}${k>1?` (${k} joueurs derrière)`:" (face à la grosse blinde)"}</option>`).join("")+'</optgroup>';
   $("pfSeat").value=tableSize===3?"spin":"1";
   const pfs=store.get("pgto_pf",null); if(pfs){ $("pfS").value=pfs.S; $("pfA").value=pfs.a; if(pfs.k) $("pfSeat").value=String(pfs.k); }
   $("pfSeat").onchange=()=>{ if(EQM) runPF(); };

@@ -61,6 +61,10 @@ main{max-width:1150px;margin:0 auto;padding:16px 16px calc(30px + env(safe-area-
 .big.fold{background:#8a2a33;color:#fff}.big.shove{background:#9b59ff;color:#fff}.big.check{background:var(--call);color:#fff}
 .big.wait{background:var(--panel2);color:var(--mute)}.big.wait b{font-size:18px}
 .why{font-size:13px;color:var(--mute);margin:8px 2px 0}
+.big b.pct{font-size:48px}
+.coach .two{display:flex;gap:10px}
+.coach .two .f{flex:1;margin:0}
+.coach input[type=number]{font-size:18px;padding:10px}
 #nav:empty{display:none}
 #mainnav{position:fixed;left:0;right:0;bottom:0;z-index:8;display:grid;grid-template-columns:repeat(4,1fr);background:#0a120d;border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom);box-shadow:0 -4px 14px #0008}
 #mainnav button{background:none;border:none;color:var(--mute);padding:8px 2px 10px;font-size:13px;font-weight:600;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;font-family:inherit}
@@ -220,18 +224,21 @@ details ul{padding-left:20px;margin:6px 0}
 <main>
 <!-- ================= COACH : que faire avec ma main ? ================= -->
 <section id="t-coach" class="tab"><div class="coach" id="coachBox"></div></section>
+<!-- ================= MES CHANCES (simple) ================= -->
+<section id="t-qc" class="tab"><div class="coach" id="qcBox"></div></section>
 <!-- ================= ACCUEIL ================= -->
 <section id="t-home" class="tab">
  <div class="home">
   <p class="intro" style="text-align:center;margin:0">Que veux-tu faire ?</p>
   <button class="hq" data-tab="coach"><span class="e">🃏</span><span><b>J'ai une main : je la joue ?</b><small>Pose tes cartes, l'appli te dit : relance, suis ou couche-toi.</small></span></button>
-  <button class="hq" data-tab="eq"><span class="e">🎯</span><span><b>Mes chances de gagner</b><small>Ta main contre celle de l'adversaire, à chaque carte.</small></span></button>
+  <button class="hq" data-tab="qc"><span class="e">🎯</span><span><b>Mes chances de gagner</b><small>Ta main contre celle de l'adversaire, à chaque carte.</small></span></button>
   <button class="hq" data-tab="pf"><span class="e">⚡</span><span><b>Tournoi : tapis ou pas ?</b><small>Quand il te reste peu de jetons (Spin &amp; Go aussi).</small></span></button>
   <button class="hq" data-tab="jeu"><span class="e">📈</span><span><b>Revoir mes parties</b><small>Charge tes mains Winamax : tes erreurs et tes gains.</small></span></button>
   <button class="hq" data-tab="tr"><span class="e">🎓</span><span><b>Apprendre</b><small>Cours simples et exercices corrigés.</small></span></button>
   <details><summary>🧰 Plus d'outils</summary>
    <div class="more">
     <button class="btn sec small" data-tab="pre">📊 Tableaux préflop</button>
+    <button class="btn sec small" data-tab="eq">🎯 Chances (détaillé)</button>
     <button class="btn sec small" data-tab="solv">🧠 Solveur</button>
     <button class="btn sec small" data-tab="rev">🔍 Revoir une main</button>
     <button class="btn sec small" data-tab="odds">🧮 Cotes</button>
@@ -1105,21 +1112,23 @@ function cardRef(k){
   if(k[0]==="s") return [k[1]==="h"?solv.hero:solv.board,+k.slice(2)];
   if(k[0]==="t") return [k[1]==="h"?tbl.hero:tbl.board,+k.slice(2)];
   if(k[0]==="c") return [k[1]==="h"?coach.hero:coach.board,+k.slice(2)];
+  if(k[0]==="k") return [k[1]==="h"?qc.hero:k[1]==="b"?qc.board:qc.opp,+k.slice(2)];
   const [p,i]=k.slice(1).split("_").map(Number); return [players[p].cards,i];
 }
 function getCard(k){ const [a,i]=cardRef(k); return a[i]; }
-function setCard(k,c){ const [a,i]=cardRef(k); a[i]=c; if(k[0]==="r") saveRv(); else if(k[0]==="s") saveSolv(); else if(k[0]==="t") saveTbl(); else if(k[0]==="c") saveCoach(); else saveEq(); }
+function setCard(k,c){ const [a,i]=cardRef(k); a[i]=c; if(k[0]==="r") saveRv(); else if(k[0]==="s") saveSolv(); else if(k[0]==="t") saveTbl(); else if(k[0]==="c") saveCoach(); else if(k[0]==="k") saveQc(); else saveEq(); }
 function usedCards(except){
   const u=new Set(), add=(arr,pre)=>arr.forEach((c,i)=>{ if(c>=0&&pre+i!==except) u.add(c); });
   if(except[0]==="r"){ add(rv.hero,"rh"); add(rv.board,"rb"); add(rv.opp,"ro"); return u; }
   if(except[0]==="s"){ add(solv.hero,"sh"); add(solv.board,"sb"); return u; }
   if(except[0]==="t"){ add(tbl.hero,"th"); add(tbl.board,"tb"); return u; }
   if(except[0]==="c"){ add(coach.hero,"ch"); add(coach.board,"cb"); return u; }
+  if(except[0]==="k"){ add(qc.hero,"kh"); add(qc.board,"kb"); if(qc.vs==="cards") add(qc.opp,"ko"); return u; }
   add(board,"b");
   players.forEach((p,k)=>{ if(p.type==="cards") add(p.cards,`p${k}_`); });
   return u;
 }
-const renderCards = k => k[0]==="r" ? renderRv() : k[0]==="s" ? renderSolv() : k[0]==="t" ? (drawSeats(),tblAdvice(),drawPre()) : k[0]==="c" ? renderCoach() : renderEq();
+const renderCards = k => k[0]==="r" ? renderRv() : k[0]==="s" ? renderSolv() : k[0]==="t" ? (drawSeats(),tblAdvice(),drawPre()) : k[0]==="c" ? renderCoach() : k[0]==="k" ? renderQc() : renderEq();
 const slotHtml = (c,k) => `<div class="slot ${c>=0?"f":""}" data-k="${k}">${c>=0?cardHtml(c):"+"}</div>`;
 function rangeInfo(txt){
   if(!String(txt).trim()) return "Range vide";
@@ -1160,7 +1169,7 @@ function drawPicker(){
   $("pkSuits").innerHTML=[0,1,2,3].map(s=>`<button data-ps="${s}" class="s${s}" ${pickRank<0||used.has(pickRank*4+s)?"disabled":""}>${SUITS[s]}</button>`).join("");
 }
 function nextEmpty(k){
-  const nx={b0:"b1",b1:"b2",rh0:"rh1",rb0:"rb1",rb1:"rb2",ro0:"ro1",sb0:"sb1",sb1:"sb2",sb2:"sb3",sb3:"sb4",sh0:"sh1",th0:"th1",th1:"tb0",tb0:"tb1",tb1:"tb2",ch0:"ch1",cb0:"cb1",cb1:"cb2"}[k] || (k[0]==="p"&&k.endsWith("_0")?k.replace("_0","_1"):null);
+  const nx={b0:"b1",b1:"b2",rh0:"rh1",rb0:"rb1",rb1:"rb2",ro0:"ro1",sb0:"sb1",sb1:"sb2",sb2:"sb3",sb3:"sb4",sh0:"sh1",th0:"th1",th1:"tb0",tb0:"tb1",tb1:"tb2",ch0:"ch1",cb0:"cb1",cb1:"cb2",kh0:"kh1",kb0:"kb1",kb1:"kb2",ko0:"ko1"}[k] || (k[0]==="p"&&k.endsWith("_0")?k.replace("_0","_1"):null);
   return nx && getCard(nx)<0 ? nx : null;
 }
 
@@ -2960,6 +2969,81 @@ document.addEventListener("click",e=>{
   else coach[k]=v;
   saveCoach(); renderCoach();
 });
+// ===== MES CHANCES (simple) : tes cartes, son jeu, le tableau → un gros pourcentage =====
+let qc=Object.assign({hero:[-1,-1],board:[-1,-1,-1,-1,-1],opp:[-1,-1],vs:"rand",n:1,pot:"",bet:""},store.get("pgto_qc",{}));
+const saveQc=()=>store.set("pgto_qc",qc);
+const QC_R={raise:"22+, A2s+, K8s+, Q9s+, J9s+, T8s+, 98s, 87s, 76s, 65s, A9o+, KTo+, QTo+, JTo",big:"88+, AJs+, KQs, AQo+"};
+let qcEq=null;
+function qcSpec(){
+  if(qc.vs==="cards") return qc.opp.every(c=>c>=0)?[{combos:[qc.opp.slice()],w:[1]}]:null;
+  const combos=[];
+  if(qc.vs==="rand"){ for(let a=0;a<52;a++) for(let b=a+1;b<52;b++) combos.push([a,b]); }
+  else parseRange(QC_R[qc.vs]).set.forEach(cl=>combosOf(cl).forEach(cb=>combos.push(cb)));
+  const sp={combos,w:combos.map(()=>1)}; return Array.from({length:qc.n},()=>sp);
+}
+function renderQc(){
+  const box=$("qcBox"); if(!box) return;
+  if(qc.vs==="cards") qc.n=1;
+  const chip=(k,v,txt,sub)=>`<button data-qc="${k}:${v}" class="${String(qc[k])===String(v)?"on":""}">${txt}${sub?`<small>${sub}</small>`:""}</button>`;
+  const H=qc.hero, nb=qc.board.filter(c=>c>=0).length, bk=qc.board.slice(0,nb);
+  let h=`<div class="st"><h3><i>1</i>Tes 2 cartes</h3><div class="slots">${H.map((x,i)=>slotHtml(x,"kh"+i)).join("")}</div></div>
+  <div class="st"><h3><i>2</i>Ton adversaire</h3>
+   <div class="ch">${chip("vs","rand","Je ne sais pas","n'importe quelle main")}${chip("vs","raise","Il a relancé","mains correctes")}${chip("vs","big","Il fait tapis","grosses mains")}${chip("vs","cards","Je vois ses cartes","main finie")}</div>
+   ${qc.vs==="cards"?`<div class="slots" style="margin-top:10px">${qc.opp.map((x,i)=>slotHtml(x,"ko"+i)).join("")}</div>`
+     :`<div class="ch-l">Combien d'adversaires ?</div><div class="ch sm">${chip("n",1,"1")}${chip("n",2,"2")}${chip("n",3,"3")}</div>`}</div>
+  <div class="st"><h3><i>3</i>Le tableau <span style="color:var(--mute);font-weight:500;font-size:13px">(vide avant le flop)</span></h3>
+   <div class="slots bd">${qc.board.map((x,i)=>slotHtml(x,"kb"+i)+(i===2||i===3?'<div class="sep"></div>':"")).join("")}</div></div>`;
+  qcEq=null; let big={cls:"wait",t:"Pose tes 2 cartes",u:"Touche les cases « + » en haut."}, extra="";
+  const order=qc.board.slice(nb).some(c=>c>=0)||(nb>0&&nb<3);
+  if(H.every(c=>c>=0)){
+    const sp=qcSpec();
+    if(order) big={cls:"wait",t:"Pose le tableau dans l'ordre",u:"D'abord les 3 cartes du flop, puis la turn, puis la river."};
+    else if(!sp) big={cls:"wait",t:"Pose ses 2 cartes",u:"Touche les cases « + » sous « Je vois ses cartes »."};
+    else {
+      qcEq=sp.length===1&&qc.vs!=="rand"?quickEquity(H,bk,qc.vs==="cards"?{t:1,c:qc.opp}:{t:2,combos:sp[0].combos},20000):multiEquity(H,bk,sp,qc.n>1?6000:12000);
+      if(qcEq!==null){
+        const e=qcEq, x=Math.round(e*10), fair=1/(qc.n+1);
+        const cls=e>=Math.max(.6,fair+.15)?"raise":e>=fair-.05?"call":"fold";
+        big={cls,t:pc(e,0),pct:true,u:(cls==="raise"?"Tu es devant : ":cls==="call"?"C'est serré : ":"Tu es derrière : ")+`tu gagnes environ ${x} fois sur 10.`};
+        if(nb>=3){
+          const sc=evalArr([...H,...bk]); extra+=`<p class="why" style="text-align:center">Ta main : <b>${CAT[sc>>20]}</b>${drawLabel(draws([...H,...bk]),sc>>20,nb)}</p>`;
+          if(nb<5){
+            const P=[{t:1,c:H},qc.vs==="cards"?{t:1,c:qc.opp}:{t:2}], o=computeOuts(H,bk,P), k=o.outs.length, u=o.u;
+            const p=nb===3?1-((u-k)*(u-k-1))/(u*(u-1)):k/u;
+            if(k&&o.mode!=="ahead") extra+=`<p class="why" style="text-align:center">🎣 <b>${k} cartes</b> peuvent t'aider : ${pc(p,0)} de chances qu'une tombe ${nb===3?"d'ici la river":"à la river"}.</p>`;
+            if(k&&o.mode==="ahead") extra+=`<p class="why" style="text-align:center">⚠️ ${k} cartes peuvent te faire passer derrière.</p>`;
+          }
+        }
+      }
+    }
+  }
+  h+=`<div class="big ${big.cls}"><b class="${big.pct?"pct":""}">${big.t}</b><span>${big.u}</span></div>${extra}`;
+  if(qcEq!==null&&qc.n===1) h+=`<div class="st"><h3><i>4</i>Il mise : je paie ?</h3>
+    <div class="two"><div class="f"><label>Le pot avant sa mise</label><input type="number" min="0" id="qcPot" value="${esc(qc.pot)}" placeholder="ex : 100"></div>
+    <div class="f"><label>Sa mise</label><input type="number" min="0" id="qcBet" value="${esc(qc.bet)}" placeholder="ex : 50"></div></div>
+    <div id="qcCall" style="margin-top:10px"></div></div>`;
+  h+=`<div class="row" style="justify-content:center"><button class="btn sec" data-qc="new:1">🔄 Tout effacer</button></div>`;
+  box.innerHTML=h; qcCall();
+}
+function qcCall(){
+  const out=$("qcCall"); if(!out) return;
+  const pot=parseFloat(qc.pot), bet=parseFloat(qc.bet);
+  if(!(pot>0)||!(bet>0)){ out.innerHTML='<p class="why">Écris le pot et sa mise : je te dis si payer est rentable.</p>'; return; }
+  const need=bet/(pot+2*bet), ok=qcEq>=need;
+  out.innerHTML=`<div class="big ${ok?"raise":"fold"}"><b>${ok?"PAIE":"COUCHE-TOI"}</b><span>Il faut gagner au moins ${pc(need,0)} du temps pour que payer soit rentable. Toi : ${pc(qcEq,0)}.</span></div>
+    <p class="why">Valable si c'est sa dernière mise de la main. S'il reste des cartes à venir et qu'il peut encore miser, sois un peu plus prudent.</p>`;
+}
+document.addEventListener("click",e=>{
+  const b=e.target.closest("[data-qc]"); if(!b) return;
+  const [k,v]=b.dataset.qc.split(":");
+  if(k==="new") qc={hero:[-1,-1],board:[-1,-1,-1,-1,-1],opp:[-1,-1],vs:qc.vs,n:qc.n,pot:"",bet:""};
+  else if(k==="n") qc.n=+v;
+  else { qc[k]=v; if(v!=="cards") qc.opp=[-1,-1]; }
+  saveQc(); renderQc();
+});
+document.addEventListener("input",e=>{
+  if(e.target.id==="qcPot"||e.target.id==="qcBet"){ qc[e.target.id==="qcPot"?"pot":"bet"]=e.target.value; saveQc(); qcCall(); }
+});
 // conseil avec les cartes posées sur la table : avant le flop (tableau de ta place), puis après le flop (chances + solveur)
 function tblSituation(){
   const hp=seatHero(), op=seatOpp(), sit=$("preSit").value, s=SCEN[+$("preScen").value];
@@ -3485,7 +3569,7 @@ function init(){
   // onglets
   // 4 grands boutons en bas, et leurs onglets en haut
   const GROUPS={
-    jouer:[["coach","🃏 Que faire avec ma main ?"],["eq","🎯 Chances"],["pre","📊 Tableaux préflop"],["odds","🧮 Cotes"],["solv","🧠 Solveur"]],
+    jouer:[["coach","🃏 Que faire avec ma main ?"],["qc","🎯 Mes chances de gagner"],["eq","🎯 Chances (détaillé)"],["pre","📊 Tableaux préflop"],["odds","🧮 Cotes"],["solv","🧠 Solveur"]],
     tournoi:[["pf","⚡ Tapis ou fold"],["icm","🏆 ICM"]],
     analyser:[["jeu","📈 Mon jeu"],["rev","🔍 Revoir une main"],["vil","👥 Joueurs"],["ses","📒 Sessions"]],
     apprendre:[["tr","🎓 Cours et exercices"]]
@@ -3538,7 +3622,7 @@ function init(){
   });
   $("nav").addEventListener("click",e=>{ const b=e.target.closest("[data-t]"); if(b){ showTab(b.dataset.t); window.scrollTo(0,0); } });
   document.querySelectorAll("#mainnav button").forEach(b=>b.onclick=()=>{ const g=b.dataset.g; showTab(lastTab[g]||GROUPS[g][0][0]); window.scrollTo(0,0); });
-  renderCoach(); showTab("home");
+  renderCoach(); renderQc(); showTab("home");
   const goHome=()=>{ showTab("home"); window.scrollTo(0,0); };
   $("goHome").onclick=goHome; document.querySelector(".brand").onclick=goHome;
 

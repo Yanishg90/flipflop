@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="42%" r="75%">
+      <stop offset="0" stop-color="#4a0d16"/>
+      <stop offset="0.55" stop-color="#1a0709"/>
+      <stop offset="1" stop-color="#070607"/>
+    </radialGradient>
+    <radialGradient id="red" cx="40%" cy="32%" r="80%">
+      <stop offset="0" stop-color="#ff3b4e"/>
+      <stop offset="0.45" stop-color="#d4142a"/>
+      <stop offset="1" stop-color="#7d0614"/>
+    </radialGradient>
+    <radialGradient id="black" cx="42%" cy="35%" r="75%">
+      <stop offset="0" stop-color="#34343a"/>
+      <stop offset="0.6" stop-color="#141417"/>
+      <stop offset="1" stop-color="#050506"/>
+    </radialGradient>
+    <linearGradient id="club" gradientUnits="userSpaceOnUse" x1="0" y1="160" x2="0" y2="330">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#e6e1d8"/>
+    </linearGradient>
+    <linearGradient id="gloss" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.28"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#000" flood-opacity="0.65"/>
+    </filter>
+    <filter id="soft" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="4" stdDeviation="5" flood-color="#000" flood-opacity="0.55"/>
+    </filter>
+    <clipPath id="chipClip"><circle cx="256" cy="256" r="190"/></clipPath>
+  </defs>
+
+  <!-- fond -->
+  <rect width="512" height="512" fill="url(#bg)"/>
+
+  <!-- jeton -->
+  <g filter="url(#shadow)">
+    <circle cx="256" cy="256" r="190" fill="url(#red)"/>
+  </g>
+  <g clip-path="url(#chipClip)">
+    <!-- encoches blanches du bord -->
+    <circle cx="256" cy="256" r="170" fill="none" stroke="#f6f2ea" stroke-width="42"
+            stroke-dasharray="48.76 84.76" transform="rotate(-11.25 256 256)"/>
+    <!-- fine ligne rouge foncé dans les encoches -->
+    <circle cx="256" cy="256" r="170" fill="none" stroke="#b30f22" stroke-width="3"
+            stroke-dasharray="48.76 84.76" transform="rotate(-11.25 256 256)" opacity="0.55"/>
+  </g>
+  <!-- liseré extérieur -->
+  <circle cx="256" cy="256" r="188.5" fill="none" stroke="#3a0208" stroke-width="3" opacity="0.6"/>
+
+  <!-- anneau intérieur -->
+  <circle cx="256" cy="256" r="142" fill="#f6f2ea"/>
+  <circle cx="256" cy="256" r="135" fill="url(#black)"/>
+  <circle cx="256" cy="256" r="122" fill="none" stroke="#d4142a" stroke-width="3" stroke-dasharray="9 7" opacity="0.9"/>
+
+  <!-- trèfle -->
+  <g filter="url(#soft)" fill="url(#club)">
+    <circle cx="256" cy="200" r="38"/>
+    <circle cx="212" cy="254" r="38"/>
+    <circle cx="300" cy="254" r="38"/>
+    <circle cx="256" cy="242" r="26"/>
+    <path d="M246 236 C246 290 236 309 214 326 L298 326 C276 309 266 290 266 236 Z"/>
+  </g>
+
+  <!-- reflet -->
+  <g clip-path="url(#chipClip)">
+    <ellipse cx="256" cy="150" rx="175" ry="105" fill="url(#gloss)"/>
+  </g>
+</svg>

@@ -1376,12 +1376,21 @@ function rvAnalyze(){
     else pre=["ok",`Acceptable, mais le GTO préfère ${recTxt}`,`${cls} dans la situation ${where} : tu as choisi de ${nameAct[a]}.`];
   }
   add(pre[0],"Avant le flop — "+pre[1],pre[2]+(eqPre!==null?`<br>Tes chances contre sa range : <b>${pc(eqPre)}</b>.`:""));
+  // --- ta range à toi (pour le solveur de river) : d'après ta situation avant le flop, puis resserrée par tes actions
+  let hSet=null;
+  if(sc&&sc.s){ const S=sc.s; hSet=act==="call"||act==="check"?(S.open?new Set([...S.raise,...S.call]):S.call):act==="shove"?new Set([...S.shove,...S.raise]):new Set([...S.raise,...S.shove]); }
+  if(!hSet||!hSet.size) hSet=parseRange("tout").set;
+  const heroL=[]; hSet.forEach(c=>combosOf(c).forEach(cb=>heroL.push({c:cb,w:1})));
+  if(!heroL.some(h=>(h.c[0]===H[0]&&h.c[1]===H[1])||(h.c[0]===H[1]&&h.c[1]===H[0]))) heroL.push({c:H.slice(),w:1});
+  const heroNarrow=(bk,a)=>{ const f=a==="bet"||a==="raise"?{value:0.85,medium:0.2,draw:0.6,air:0.25}:a==="call"?{value:0.9,medium:0.8,draw:0.8,air:0.05}:{value:0.45,medium:1,draw:0.8,air:1}; const cl=makeClassifier(bk); heroL.forEach(h=>{ h.w*=f[cl(h.c)]; }); };
   // --- après le flop
   let stopped=act==="fold";
   for(let s=0;s<3&&!stopped&&3+s<=n;s++){
     const bk=rv.board.slice(0,3+s), st=rv.streets[s], pot=rvPot(s), ob=+st.obet||0, amt=+st.amt||0;
     // il a payé ta mise au tour d'avant : il garde surtout ses mains correctes
     if(s>0&&["bet","raise"].includes(rv.streets[s-1].act)) narrow(rv.board.slice(0,2+s),{value:1,medium:0.75,draw:0.8,air:0.1});
+    if(s>0) heroNarrow(rv.board.slice(0,2+s),rv.streets[s-1].act);
+    const wBefore=s===2?Float64Array.from(rangeSpec.w):null; // sa range juste avant sa décision de river
     // il mise à ce tour : il a plus souvent du fort (et quelques bluffs selon son style)
     if(ob>0) narrow(bk,{value:sf.vF,medium:0.15,draw:Math.min(1,sf.bF*1.4),air:sf.bF*0.8});
     const eq=quickEquity(H,bk,rangeSpec), eqR=realSpec?quickEquity(H,bk,realSpec):null;
@@ -1420,6 +1429,11 @@ function rvAnalyze(){
         else {v="ok";t="Mise avec une main moyenne"+sz;x="Avec une main moyenne, le check est souvent meilleur : les mains moins bonnes se couchent et les meilleures paient.";}
       } else if(st.act==="fold"){v="bad";t="Tu pouvais checker gratuitement";x="Personne n'avait misé : passer ne coûtait rien.";}
       else {t="Action impossible";x="Personne n'avait misé : tu pouvais checker ou miser.";}
+    }
+    // à la river : avis du vrai solveur GTO, avec ta main exacte
+    if(s===2&&["check","bet","call","fold"].includes(st.act)){
+      const g=rvRiverGTO(rv.board,pot,ob,amt,st.act,combos,wBefore,heroL,H);
+      if(g){ v=g.v; t=g.t; x=g.x+`<br><span class="help">Calcul simple : ${x}</span>`; }
     }
     add(v,`${STREETS[s]} — ${t}`,eqTxt+"<br>"+x);
   }
@@ -1469,6 +1483,32 @@ async function rvFromPhoto(file){
       ${d.note?`<br><span class="help">${esc(d.note)}</span>`:""}
       <br><span class="help">${hero.length===2?"":"Tes 2 cartes n'ont pas été trouvées : ajoute-les à la main. "}Vérifie bien : si une carte est fausse, touche-la pour la changer. Ajoute ensuite les mises.</span></div>`;
   }catch(e){ msg.innerHTML='<p class="err">Impossible de joindre le serveur photo. Vérifie ta connexion internet et l\'adresse dans les réglages.</p>'; }
+}
+
+// verdict GTO de ta décision de river : on résout la river (ta range contre la sienne) et on regarde ta main exacte
+const POSTFLOP_ORDER=["SB","BB","UTG","UTG+1","UTG+2","LJ","HJ","CO","BTN"];
+function rvRiverGTO(board,pot,ob,amt,act,vCombos,vW,heroL,H){
+  if(!vW||!(pot>0)) return null;
+  const heroOOP=POSTFLOP_ORDER.indexOf(rv.pos)<POSTFLOP_ORDER.indexOf(rv.oppPos);
+  const bs=new Set(board), hs=new Set(H);
+  const vil=vCombos.map((c,i)=>({c,w:vW[i]})).filter(h=>!bs.has(h.c[0])&&!bs.has(h.c[1])&&!hs.has(h.c[0])&&!hs.has(h.c[1]));
+  const her=heroL.filter(h=>!bs.has(h.c[0])&&!bs.has(h.c[1]));
+  const node=heroOOP?(ob>0?"D":"A"):(ob>0?"B":"C");
+  const B=ob>0?ob:(act==="bet"&&amt>0?amt:pot*0.75);
+  const res=solveRiverW(board,heroOOP?her:vil,heroOOP?vil:her,pot,B,1000);
+  if(!res) return null;
+  const list=heroOOP?res.O:res.I, k=list.findIndex(x=>(x.c[0]===H[0]&&x.c[1]===H[1])||(x.c[0]===H[1]&&x.c[1]===H[0]));
+  if(k<0) return null;
+  const p=(node==="A"?res.bet:node==="D"?res.callD:node==="B"?res.callB:res.betC)[k];
+  const [yes,no]=node==="A"||node==="C"?["miser","checker"]:["payer","te coucher"];
+  const did=act==="bet"||act==="call", freq=did?p:1-p, mine=did?yes:no;
+  const gto=p>0.97?`<b>${yes}</b> (toujours)`:p<0.03?`<b>${no}</b> (toujours)`:`<b>${yes}</b> ${pc(p,0)} du temps, <b>${no}</b> le reste`;
+  const sizeTxt=ob>0?`face à une mise de ${fmtAmt(B)}`:`avec une mise de ${fmtAmt(B)}${act==="bet"&&amt>0?"":" (taille étudiée : 3/4 du pot)"}`;
+  let v,t;
+  if(freq>=0.6){ v="good"; t=`Bonne décision selon le solveur GTO : ${mine}`; }
+  else if(freq>=0.25){ v="ok"; t=`Décision mixte : le solveur GTO fait les deux`; }
+  else { v="bad"; t=`Le solveur GTO aurait fait l'inverse : ${p>=0.5?yes:no}`; }
+  return {v,t,x:`🧠 Avec ta main exacte, ${sizeTxt}, le solveur GTO dit : ${gto}. Toi, tu as choisi de ${mine}.`};
 }
 
 function renderRvList(){
@@ -2192,9 +2232,15 @@ async function hhImport(texts){
 =================================================================== */
 function solveRiver(board,rangeO,rangeI,P,B,iters=1500){
   const bset=new Set(board);
-  const mk=set=>{ const hs=[]; set.forEach(cl=>combosOf(cl).forEach(cb=>{ if(!bset.has(cb[0])&&!bset.has(cb[1])) hs.push({c:cb,cl,s:evalArr([cb[0],cb[1],...board])}); })); hs.sort((a,b)=>a.s-b.s); return hs; };
-  const O=mk(rangeO), I=mk(rangeI);
+  const mk=set=>{ const hs=[]; set.forEach(cl=>combosOf(cl).forEach(cb=>{ if(!bset.has(cb[0])&&!bset.has(cb[1])) hs.push({c:cb,cl,w:1}); })); return hs; };
+  return solveRiverW(board,mk(rangeO),mk(rangeI),P,B,iters);
+}
+// même calcul, avec des listes de mains pondérées {c, cl, w} (ranges resserrées)
+function solveRiverW(board,Oin,Iin,P,B,iters=1500){
+  const prep=L=>L.filter(h=>h.w>0.001).map(h=>({c:h.c,cl:h.cl||classOf(h.c[0],h.c[1]),w:h.w,s:evalArr([h.c[0],h.c[1],...board])})).sort((a,b)=>a.s-b.s);
+  const O=prep(Oin), I=prep(Iin);
   if(!O.length||!I.length) return null;
+  const wO=O.map(h=>h.w), wI=I.map(h=>h.w);
   const nO=O.length, nI=I.length, sO=O.map(h=>h.s), sI=I.map(h=>h.s);
   // pour chaque main (triée), poids adverses plus faibles (W), égaux (T), plus forts (L)
   const agg=(own,opp,w)=>{ const n=own.length, W=new Float64Array(n), T=new Float64Array(n), L=new Float64Array(n); let tot=0; for(const x of w) tot+=x;
@@ -2209,14 +2255,14 @@ function solveRiver(board,rangeO,rangeI,P,B,iters=1500){
     for(let i=0;i<nO;i++){ pA[i]=pr(A,i); pD[i]=pr(D,i); }
     for(let j=0;j<nI;j++){ pB[j]=pr(Bn,j); pC[j]=pr(C,j); }
     // valeurs du 1er joueur (hors de position)
-    const one=new Float64Array(nI).fill(1), foldB=pB.reduce((a,x)=>a+1-x,0);
-    const aB=agg(sO,sI,pB), aChk=agg(sO,sI,pC.map(x=>1-x)), aCb=agg(sO,sI,pC);
+    const foldB=pB.reduce((a,x,j)=>a+(1-x)*wI[j],0);
+    const aB=agg(sO,sI,pB.map((x,j)=>x*wI[j])), aChk=agg(sO,sI,pC.map((x,j)=>(1-x)*wI[j])), aCb=agg(sO,sI,pC.map((x,j)=>x*wI[j]));
     for(let i=0;i<nO;i++){
       const vBet=P*foldB+sdBet(aB,i), vCallD=sdBet(aCb,i), vChk=sdChk(aChk,i)+pD[i]*vCallD;
       upd(A,i,vChk,vBet,pA[i],1,t); upd(D,i,0,vCallD,pD[i],1-pA[i],t);
     }
     // valeurs du 2e joueur (en position)
-    const rB=pA, rC=pA.map(x=>1-x), rCD=rC.map((x,i)=>x*pD[i]), rCF=rC.reduce((a,x,i)=>a+x*(1-pD[i]),0);
+    const rB=pA.map((x,i)=>x*wO[i]), rC=pA.map((x,i)=>(1-x)*wO[i]), rCD=rC.map((x,i)=>x*pD[i]), rCF=rC.reduce((a,x,i)=>a+x*(1-pD[i]),0);
     const bB=agg(sI,sO,rB), bChk=agg(sI,sO,rC), bCD=agg(sI,sO,rCD);
     for(let j=0;j<nI;j++){
       const vCallB=sdBet(bB,j), vChkC=sdChk(bChk,j), vBetC=P*rCF+sdBet(bCD,j);
@@ -2229,7 +2275,7 @@ function solveRiver(board,rangeO,rangeI,P,B,iters=1500){
 // meilleure réponse d'une main précise (même hors de la range) face à la stratégie calculée
 function riverBest(res,cards,board,isO){
   const s=evalArr([...cards,...board]), {O,I,P,B}=res, bset=new Set(cards);
-  const sum=(hs,w,f)=>{ let W=0,T=0,L=0,tot=0; hs.forEach((h,k)=>{ if(bset.has(h.c[0])||bset.has(h.c[1])) return; const x=w(k); tot+=x; if(h.s<s) W+=x; else if(h.s===s) T+=x; else L+=x; }); return {W,T,L,tot}; };
+  const sum=(hs,w,f)=>{ let W=0,T=0,L=0,tot=0; hs.forEach((h,k)=>{ if(bset.has(h.c[0])||bset.has(h.c[1])) return; const x=w(k)*(h.w??1); tot+=x; if(h.s<s) W+=x; else if(h.s===s) T+=x; else L+=x; }); return {W,T,L,tot}; };
   const sd=(a,bet)=>bet?(P+B)*a.W-B*a.L+P/2*a.T:P*a.W+P/2*a.T;
   if(isO){
     const n=sum(I,()=>1), aB=sum(I,k=>res.callB[k]), aF=n.tot-aB.tot, aChk=sum(I,k=>1-res.betC[k]), aCb=sum(I,k=>res.betC[k]);

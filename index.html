@@ -114,6 +114,19 @@ td.r,th.r{text-align:right}
 .trbtns .btn{flex:1 1 120px;padding:14px}
 svg text{fill:var(--mute);font-size:11px}
 #installBtn{display:none}
+.q{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;border:1px solid var(--acc2);background:transparent;color:var(--acc2);font-size:12px;font-weight:800;cursor:pointer;vertical-align:2px;padding:0;margin-left:4px;font-family:inherit;line-height:1}
+.q:hover{background:var(--acc2);color:#2a2000}
+#glossBox{width:min(440px,100%)}
+#glossBox h3{margin:0 0 8px;color:var(--acc2);font-size:18px}
+#lexique dt{font-weight:700;margin-top:10px;color:var(--acc2)}
+#lexique dd{margin:2px 0 0 0;font-size:14px}
+.banner{background:#3a3010;border:1px solid var(--acc2);border-radius:10px;padding:10px 12px;margin-bottom:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.banner span{flex:1 1 220px}
+.tour{text-align:center}
+.tour .emo{font-size:54px;line-height:1.2}
+.tour .dots{display:flex;gap:6px;justify-content:center;margin:12px 0}
+.tour .dots i{width:9px;height:9px;border-radius:50%;background:var(--line)}
+.tour .dots i.on{background:var(--acc)}
 .bigcards.sm .slot{width:50px;height:70px;font-size:20px}
 .rvi{border-left:4px solid #4b6b58;padding:9px 11px;background:var(--panel2);border-radius:8px;margin:8px 0}
 .rv-good{border-color:var(--acc)}.rv-ok{border-color:var(--acc2)}.rv-bad{border-color:var(--bad)}
@@ -156,7 +169,7 @@ details ul{padding-left:20px;margin:6px 0}
    </div>
    <div class="card">
     <h2>Adversaires</h2>
-    <p class="help">« Range » = toutes les mains qu'il peut avoir, par exemple <code>QQ+, AKs, AQo</code> (s = même couleur, o = couleurs différentes, T = 10). Utilise la grille ou une range type.</p>
+    <p class="help"><button class="q" data-q="range" aria-label="Explication">?</button> « Range » = toutes les mains qu'il peut avoir, par exemple <code>QQ+, AKs, AQo</code> (s = même couleur, o = couleurs différentes, T = 10). Utilise la grille ou une range type.</p>
     <div id="oppBox"></div>
     <div class="row"><button class="btn sec small" id="addOpp">+ Ajouter un adversaire</button></div>
    </div>
@@ -176,7 +189,7 @@ details ul{padding-left:20px;margin:6px 0}
     <div id="out"><p class="help">Choisis tes cartes puis clique sur « Calculer ».</p></div>
    </div>
    <div class="card" id="hmCard" style="display:none">
-    <h2>🗺️ Ses mains, une par une</h2>
+    <h2>🗺️ Ses mains, une par une <button class="q" data-q="combos" aria-label="Explication">?</button></h2>
     <p class="help" id="hmTitle"></p>
     <div class="legend"><span><i style="background:var(--acc)"></i>tu es devant</span><span><i style="background:var(--acc2)"></i>c'est serré</span><span><i style="background:#c0392b"></i>il est devant</span><span><i style="background:#24382c;opacity:.35"></i>il ne joue pas cette main</span></div>
     <div class="rg ro" id="hmGrid"></div>
@@ -187,7 +200,7 @@ details ul{padding-left:20px;margin:6px 0}
     <div id="anal"><p class="help">Pose au moins le flop puis clique sur « Calculer » : tu verras tes outs, tes tirages et ce que l'adversaire peut avoir.</p></div>
    </div>
    <div class="card">
-    <h2>🕵️ Peut-il bluffer ?</h2>
+    <h2>🕵️ Peut-il bluffer ? <button class="q" data-q="bluff" aria-label="Explication">?</button></h2>
     <p class="help">Pose le flop (et le turn ou la river s'ils sont sortis) et règle l'adversaire plus haut. Flip&amp;Flop compte toutes ses mains possibles : celles qui sont fortes, et celles avec lesquelles il ne peut que bluffer.</p>
     <div class="f"><label>Quel adversaire ?</label><select id="blOpp"></select></div>
     <div class="f"><label>Son style de jeu</label><select id="blStyle" style="max-width:100%"></select></div>
@@ -197,7 +210,7 @@ details ul{padding-left:20px;margin:6px 0}
     <div id="blOut"></div>
    </div>
    <div class="card">
-    <h2>Ce que tu auras à la river</h2>
+    <h2>Ce que tu auras à la river <button class="q" data-q="river" aria-label="Explication">?</button></h2>
     <div id="dist"><p class="help">—</p></div>
    </div>
   </div>
@@ -241,7 +254,7 @@ details ul{padding-left:20px;margin:6px 0}
    </div>
   </div>
   <div class="col">
-   <div class="card"><h2>Le verdict</h2><div id="rvOut"><p class="help">Remplis la main puis clique sur « Analyser la main ».</p></div></div>
+   <div class="card"><h2>Le verdict <button class="q" data-q="resserrer" aria-label="Explication">?</button></h2><div id="rvOut"><p class="help">Remplis la main puis clique sur « Analyser la main ».</p></div></div>
    <div class="card"><h2>Mes mains enregistrées</h2><div class="tscroll" id="rvList"></div></div>
   </div>
  </div>
@@ -269,7 +282,7 @@ details ul{padding-left:20px;margin:6px 0}
  <div class="grid2">
   <div class="col">
    <div class="card">
-    <h2>L'adversaire mise : je paie ou je me couche ?</h2>
+    <h2>L'adversaire mise : je paie ou je me couche ? <button class="q" data-q="cote" aria-label="Explication">?</button></h2>
     <div class="f"><label>Pot avant sa mise</label><input type="number" id="oPot" value="100" min="0"></div>
     <div class="f"><label>Sa mise (ce que tu dois payer)</label><input type="number" id="oBet" value="50" min="0"></div>
     <div class="f"><label>Tes chances de gagner (%)</label><input type="number" id="oEq" value="35" min="0" max="100" step="0.1"></div>
@@ -278,7 +291,7 @@ details ul{padding-left:20px;margin:6px 0}
     <div id="oVerdict"></div>
    </div>
    <div class="card">
-    <h2>Mes outs → mes chances</h2>
+    <h2>Mes outs → mes chances <button class="q" data-q="outs" aria-label="Explication">?</button></h2>
     <p class="help">Un « out » est une carte qui te fait gagner. Exemple : tirage couleur = 9 outs.</p>
     <div class="f"><label>Nombre d'outs</label><input type="number" id="ouN" value="9" min="0" max="30"></div>
     <div class="f"><label>Où en est le coup ?</label><select id="ouSt"><option value="3">Au flop (2 cartes à venir)</option><option value="4">Au turn (1 carte à venir)</option></select></div>
@@ -295,7 +308,7 @@ details ul{padding-left:20px;margin:6px 0}
   </div>
   <div class="col">
    <div class="card">
-    <h2>C'est moi qui mise : combien de bluffs ?</h2>
+    <h2>C'est moi qui mise : combien de bluffs ? <button class="q" data-q="valeur" aria-label="Explication">?</button></h2>
     <div class="f"><label>Pot</label><input type="number" id="bPot" value="100" min="0"></div>
     <div class="f"><label>Ma mise</label><input type="number" id="bBet" value="75" min="0"></div>
     <div class="row">
@@ -310,7 +323,7 @@ details ul{padding-left:20px;margin:6px 0}
     <p class="note" id="bTxt"></p>
    </div>
    <div class="card">
-    <h2>SPR (tapis / pot)</h2>
+    <h2>SPR (tapis / pot) <button class="q" data-q="spr" aria-label="Explication">?</button></h2>
     <p class="help">Dit à quel point tu es engagé dans le coup après le flop.</p>
     <div class="f"><label>Tapis effectif (le plus petit des deux)</label><input type="number" id="spS" value="900" min="0"></div>
     <div class="f"><label>Pot au flop</label><input type="number" id="spP" value="200" min="0"></div>
@@ -334,7 +347,7 @@ details ul{padding-left:20px;margin:6px 0}
  <p class="intro">Quelles mains jouer avant le flop, selon ta place à la table. Choisis 6 joueurs (en ligne) ou 9 joueurs (casino, club). Tapis de 100 grosses blindes. Ranges proches de celles des solveurs (approchées).</p>
  <div class="grid2">
   <div class="card">
-   <h2>Tableau des mains</h2>
+   <h2>Tableau des mains <button class="q" data-q="3bet" aria-label="Explication">?</button></h2>
    <div class="row"><select id="preTable" style="flex:1;max-width:100%"><option value="6">Table de 6 joueurs (en ligne)</option><option value="9">Table de 9 joueurs (casino, club)</option></select></div>
    <div class="row"><select id="preScen" style="flex:1;max-width:100%"></select></div>
    <div class="legend" id="preLegend"></div>
@@ -349,7 +362,7 @@ details ul{padding-left:20px;margin:6px 0}
     <div id="preAns"></div>
    </div>
    <div class="card">
-    <h2>Les positions</h2>
+    <h2>Les positions <button class="q" data-q="position" aria-label="Explication">?</button></h2>
     <p><b>UTG</b> : premier à parler, on joue serré. <b>HJ</b> puis <b>CO</b> : de plus en plus large. <b>BTN</b> (bouton) : dernier à jouer après le flop, la meilleure place. <b>SB</b> : petite blinde. <b>BB</b> : grosse blinde, elle a déjà payé, donc elle défend beaucoup.</p>
     <p><b>Relancer</b> en premier = « open ». Relancer une relance = « 3-bet ». <b>Suivre</b> = payer.</p>
    </div>
@@ -359,8 +372,9 @@ details ul{padding-left:20px;margin:6px 0}
 
 <!-- ================= TAPIS OU FOLD ================= -->
 <section id="t-pf" class="tab">
- <p class="intro">Fin de tournoi, petit tapis, face à face : petite blinde contre grosse blinde. Le logiciel calcule ici le <b>vrai équilibre GTO</b> (équilibre de Nash) : quand faire tapis, et quand payer le tapis.</p>
+ <p class="intro">Fin de tournoi, petit tapis : quand faire tapis, et quand payer un tapis. <button class="q" data-q="nash" aria-label="Explication">?</button> Depuis la petite blinde, c'est le <b>vrai équilibre GTO</b> (équilibre de Nash). Depuis les autres places, c'est une très bonne approximation.</p>
  <div class="card">
+  <div class="f"><label>Ta place (personne n'a joué avant toi)</label><select id="pfSeat"></select></div>
   <div class="row">
    <label>Tapis effectif (en grosses blindes)</label><input type="number" id="pfS" value="10" min="1" max="50" step="0.5">
    <label>Ante (en grosses blindes)</label><input type="number" id="pfA" value="0" min="0" max="1" step="0.05">
@@ -369,8 +383,8 @@ details ul{padding-left:20px;margin:6px 0}
   <p class="help" id="pfStatus">La première fois, le logiciel prépare un tableau de 28 561 duels de mains (environ 10 secondes). Ensuite c'est instantané.</p>
  </div>
  <div class="grid2" style="margin-top:16px">
-  <div class="card"><h2>Petite blinde : faire tapis</h2><p class="help" id="pfInfoP"></p><div class="rg ro" id="pfGridP"></div></div>
-  <div class="card"><h2>Grosse blinde : payer le tapis</h2><p class="help" id="pfInfoC"></p><div class="rg ro" id="pfGridC"></div></div>
+  <div class="card"><h2 id="pfTitleP">Petite blinde : faire tapis</h2><p class="help" id="pfInfoP"></p><div class="rg ro" id="pfGridP"></div></div>
+  <div class="card"><h2 id="pfTitleC">Grosse blinde : payer le tapis</h2><p class="help" id="pfInfoC"></p><div class="rg ro" id="pfGridC"></div></div>
  </div>
  <div class="card" style="margin-top:16px">
   <p id="pfCell" class="help">Touche une case pour voir la main en détail. Une case à moitié colorée = on la joue une partie du temps.</p>
@@ -392,10 +406,20 @@ details ul{padding-left:20px;margin:6px 0}
    <p class="help">Exemple : <code>500, 300, 200</code> pour 500 € au 1er, 300 € au 2e, 200 € au 3e.</p>
   </div>
   <div class="card">
-   <h2>Ce que vaut chaque tapis</h2>
+   <h2>Ce que vaut chaque tapis <button class="q" data-q="icm" aria-label="Explication">?</button></h2>
    <div class="tscroll" id="icmOut"></div>
    <p class="note">Le plus gros tapis vaut moins que sa part de jetons, le plus petit vaut plus. C'est pourquoi, près des places payées, il faut être plus prudent pour payer un tapis.</p>
   </div>
+ </div>
+ <div class="card" style="margin-top:16px">
+  <h2>🤔 Dois-je payer ce tapis ? <button class="q" data-q="icm" aria-label="Explication">?</button></h2>
+  <p class="help">Un joueur fait tapis et tu hésites à payer. Avec les tapis et les prix entrés plus haut, Flip&amp;Flop calcule combien de chances il te faut vraiment. Avec l'ICM, il en faut souvent plus qu'on ne croit.</p>
+  <div class="f"><label>Toi</label><select id="icMe"></select></div>
+  <div class="f"><label>Celui qui fait tapis</label><select id="icHim"></select></div>
+  <div class="f"><label>Jetons déjà au milieu (blindes, antes)</label><input type="number" id="icDead" value="0" min="0"></div>
+  <div class="f"><label>Tes chances de gagner (%)</label><input type="number" id="icEq" value="45" min="0" max="100" step="0.1"></div>
+  <div class="row"><button class="btn sec small" id="icUseEq">Prendre mon dernier calcul de chances</button></div>
+  <div id="icOut"></div>
  </div>
 </section>
 
@@ -466,6 +490,8 @@ details ul{padding-left:20px;margin:6px 0}
    <p>Quand il te reste moins de 15 grosses blindes, le jeu devient simple : <b>tapis ou se coucher</b>. L'onglet « Tapis ou fold » te donne les mains exactes.</p>
    <p>Près des places payées, perdre coûte plus cher que gagner ne rapporte (c'est l'<b>ICM</b>) : paie les tapis avec des mains plus fortes que d'habitude.</p>
    <button class="btn sec small" data-go="pf">S'entraîner →</button></details>
+  <details id="lexDetails"><summary>📖 Le lexique : tous les mots du poker expliqués</summary><dl id="lexique"></dl></details>
+  <div class="row"><button class="btn sec small" id="tourAgain">🧭 Revoir la visite guidée</button></div>
   <details><summary>10. Gérer son argent (bankroll)</summary>
    <p>Ne joue qu'avec de l'argent que tu peux perdre. Garde au moins <b>30 caves</b> pour le cash game (ex : 30 × 2 € = 60 € pour jouer en 2 € la cave) et <b>100 inscriptions</b> pour les tournois.</p>
    <p>Si tu perds plusieurs coups de suite et que tu t'énerves (« tilt »), <b>arrête la session</b>. Note toutes tes parties pour savoir si tu gagnes vraiment.</p>
@@ -506,6 +532,19 @@ details ul{padding-left:20px;margin:6px 0}
   <div class="ranks" id="pkRanks"></div>
   <p class="help" style="margin-top:14px">2. Touche la couleur</p>
   <div class="suits" id="pkSuits"></div>
+</div></div>
+
+<!-- explication d'un mot -->
+<div class="modal" id="gloss"><div class="box" id="glossBox">
+  <h3 id="glossT"></h3><p id="glossD" style="margin:0 0 12px"></p>
+  <div class="row"><button class="btn small" data-close="gloss">J'ai compris</button><button class="btn sec small" id="glossAll">Voir tous les mots</button></div>
+</div></div>
+
+<!-- visite guidée -->
+<div class="modal" id="tour"><div class="box tour" style="width:min(420px,100%)">
+  <div class="emo" id="tourE"></div><h2 id="tourT" style="color:var(--acc2);margin:6px 0"></h2><p id="tourD"></p>
+  <div class="dots" id="tourDots"></div>
+  <div class="row" style="justify-content:center"><button class="btn sec small" id="tourSkip">Passer</button><button class="btn" id="tourNext">Suivant →</button></div>
 </div></div>
 
 <!-- grille de range -->
@@ -704,6 +743,39 @@ PRESETS["3-bet serré (~4 %)"]="QQ+, AKs, AKo, AQs, A5s, KQs";
 PRESETS["Mains premium (~3 %)"]="QQ+, AKs, AKo";
 PRESETS["Toutes les mains"]="tout";
 const presetOpts = () => Object.keys(PRESETS).map(p=>`<option>${esc(p)}</option>`).join("");
+
+/* ---- lexique : un mot = une explication simple ---- */
+const GLOSS={
+  range:["Range","Toutes les mains qu'un joueur peut avoir dans une situation. Exemple : « QQ+, AKs » = les paires de Dames, Rois, As, et As-Roi de la même couleur. s = même couleur, o = couleurs différentes, T = 10, « + » = et toutes les mains au-dessus."],
+  equite:["Équité (chances)","Ta part du pot à long terme : si tu as 60 % d'équité, tu gagnes en moyenne 60 % du pot quand le coup est joué jusqu'au bout."],
+  river:["Flop, turn, river","Le flop = les 3 premières cartes du tableau. Le turn = la 4e carte. La river = la 5e et dernière carte."],
+  outs:["Outs","Les cartes encore dans le paquet qui t'améliorent assez pour gagner. Règle rapide : outs × 4 au flop, outs × 2 au turn = tes chances en %."],
+  cote:["Cote du pot","Ce que tu dois payer comparé à ce que tu peux gagner. Si tes chances de gagner sont plus grandes que les « chances nécessaires », payer rapporte de l'argent à long terme."],
+  implicites:["Cotes implicites","L'argent que tu espères gagner en plus plus tard, quand tu touches ton tirage. Elles peuvent rendre un call rentable même si tes chances sont un peu faibles."],
+  mdf:["MDF","Fréquence minimale de défense : face à une mise, la part de tes mains que tu dois garder (payer ou relancer). Si tu te couches plus souvent, l'adversaire gagne de l'argent en bluffant avec n'importe quoi."],
+  gto:["GTO","« Théorie des jeux » : une façon de jouer tellement équilibrée que personne ne peut l'exploiter. On s'en écarte contre les joueurs faibles pour gagner encore plus."],
+  bluff:["Bluff","Miser avec une main faible pour faire coucher des mains meilleures. Un « semi-bluff », c'est bluffer avec un tirage qui peut encore gagner si on te paie."],
+  valeur:["Mise de valeur","Miser avec une bonne main pour que des mains moins bonnes te paient. Plus ta mise est grosse, plus tu peux aussi y mélanger de bluffs."],
+  spr:["SPR","Tapis restant divisé par le pot au flop. Petit SPR (moins de 3) : tu peux tout miser avec une bonne paire. Gros SPR : il faut une main très forte."],
+  "3bet":["3-bet et 4-bet","Open = première relance. 3-bet = relancer une relance. 4-bet = relancer un 3-bet. Plus on relance, plus les mains sont fortes."],
+  limp:["Limp","Juste payer la grosse blinde au lieu de relancer, quand personne n'a relancé. Les bons joueurs ne le font presque jamais."],
+  position:["Positions","UTG = premier à parler. Puis UTG+1, UTG+2, LJ, HJ, CO, BTN (le bouton, dernier à parler après le flop), SB (petite blinde), BB (grosse blinde). Parler en dernier est un gros avantage."],
+  combos:["Combinaisons","Une main comme AKo existe en 12 versions (couleurs différentes), AKs en 4, une paire comme 88 en 6. Il y a 1 326 mains de départ possibles en tout."],
+  icm:["ICM","Calcul qui transforme les jetons en vraie valeur en euros, selon les prix d'un tournoi. Perdre tes jetons coûte plus cher que d'en gagner autant ne rapporte."],
+  nash:["Équilibre de Nash","La stratégie où aucun des deux joueurs ne peut gagner plus en changeant seul sa façon de jouer. Pour « tapis ou fold », c'est la stratégie GTO exacte."],
+  tapis:["Tapis (all-in)","Miser tous ses jetons. « Tapis ou fold » : quand on a peu de jetons, on fait tapis ou on se couche, sans relance moyenne."],
+  ante:["Ante","Une petite mise obligatoire que chaque joueur paie à chaque main, en plus des blindes (surtout en tournoi). Plus il y a d'antes, plus il faut attaquer."],
+  blindes:["Blindes","Mises obligatoires : la petite blinde (SB) et la grosse blinde (BB). On compte souvent son tapis en grosses blindes (« bb »)."],
+  tirage:["Tirage","Une main qui n'est pas encore faite mais peut le devenir : tirage couleur (4 cartes de la même couleur), tirage quinte par les deux bouts, ou quinte ventrale (il manque une carte au milieu)."],
+  kicker:["Kicker","La carte d'accompagnement. Avec A-K contre A-9 sur un As, les deux ont une paire d'As, mais le Roi (kicker) fait gagner A-K."],
+  bloqueur:["Bloqueur","Une carte que tu as et qui rend certaines mains de l'adversaire impossibles. Avoir l'As de cœur empêche l'adversaire d'avoir la couleur max à cœur."],
+  resserrer:["Range qui se resserre","Quand un joueur mise ou paie, il a plus souvent une bonne main : Flip&Flop retire petit à petit ses mains faibles de sa range, selon son style."],
+  serre:["Serré / large","Un joueur serré joue peu de mains (seulement les bonnes). Un joueur large en joue beaucoup, même des mains faibles."],
+  agressif:["Passif / agressif","Un joueur agressif mise et relance souvent. Un joueur passif suit (paie) et checke, il mise rarement."],
+  tilt:["Tilt","Jouer mal parce qu'on est énervé ou frustré après des coups perdus. Le meilleur remède : faire une pause."],
+  bankroll:["Bankroll","L'argent réservé au poker. On garde au moins 30 caves en cash game et 100 inscriptions en tournoi pour encaisser les mauvaises séries."]
+};
+function showGloss(k){ const g=GLOSS[k]; if(!g) return; $("glossT").textContent=g[0]; $("glossD").textContent=g[1]; $("gloss").classList.add("on"); }
 
 /* grille 13x13 générique */
 function drawGrid(el,cellFn){
@@ -1020,26 +1092,44 @@ function toggleCell(d){
 /* ===================================================================
    REVOIR UNE MAIN (après la partie)
 =================================================================== */
-function quickEquity(hero,bk,opp,N=12000){ // opp : {t:1,c:[2 cartes]} ou {t:2,combos}
-  const dead=new Set([...hero,...bk]);
-  const combos=(opp.t===1?[opp.c]:opp.combos).filter(cb=>!dead.has(cb[0])&&!dead.has(cb[1]));
-  if(!combos.length) return null;
+function quickEquity(hero,bk,opp,N=12000){ // opp : {t:1,c:[2 cartes]} | {t:2,combos} | {t:3,combos,w:poids}
+  const dead=new Set([...hero,...bk]), list=[], ws=[];
+  (opp.t===1?[opp.c]:opp.combos).forEach((cb,i)=>{
+    if(dead.has(cb[0])||dead.has(cb[1])) return;
+    const w=opp.t===3?opp.w[i]:1; if(w>0){ list.push(cb); ws.push(w); }
+  });
+  if(!list.length) return null;
   const need=5-bk.length, av=[]; for(let c=0;c<52;c++) if(!dead.has(c)) av.push(c);
   const cmp=(cb,b)=>{ const a=evalArr([...hero,...b]), o=evalArr([cb[0],cb[1],...b]); return a>o?1:(a===o?0.5:0); };
-  if(need===0){ let w=0; for(const cb of combos) w+=cmp(cb,bk); return w/combos.length; }
+  if(need===0){ let s=0,t=0; list.forEach((cb,i)=>{ s+=ws[i]*cmp(cb,bk); t+=ws[i]; }); return s/t; }
   if(opp.t===1&&need<=2){
-    const cb=combos[0], r=av.filter(c=>c!==cb[0]&&c!==cb[1]); let w=0,k=0;
+    const cb=list[0], r=av.filter(c=>c!==cb[0]&&c!==cb[1]); let w=0,k=0;
     if(need===1) for(const c of r){ w+=cmp(cb,[...bk,c]); k++; }
     else for(let i=0;i<r.length;i++) for(let j=i+1;j<r.length;j++){ w+=cmp(cb,[...bk,r[i],r[j]]); k++; }
     return w/k;
   }
+  const cum=[]; let tot=0; for(const x of ws){ tot+=x; cum.push(tot); }
+  const pick=()=>{ const x=rnd()*tot; let lo=0,hi=cum.length-1; while(lo<hi){ const m=(lo+hi)>>1; if(cum[m]<x) lo=m+1; else hi=m; } return list[lo]; };
   let w=0;
   for(let it=0;it<N;it++){
-    const cb=combos[(rnd()*combos.length)|0], b=bk.slice();
+    const cb=pick(), b=bk.slice();
     while(b.length<5){ const c=av[(rnd()*av.length)|0]; if(c!==cb[0]&&c!==cb[1]&&!b.includes(c)) b.push(c); }
     w+=cmp(cb,b);
   }
   return w/N;
+}
+// classe chaque main adverse sur un tableau : value / medium / draw / air
+function makeClassifier(bk){
+  const boardCat=evalArr(bk)>>20, bdBoard=draws(bk), rc={};
+  bk.forEach(c=>rc[c>>2]=(rc[c>>2]||0)+1);
+  const unpaired=bk.map(c=>c>>2).filter(r=>rc[r]===1);
+  const topB=unpaired.length?Math.max(...unpaired):Math.max(...bk.map(c=>c>>2));
+  return cb=>classifyCombo(cb,bk,boardCat,topB,bdBoard);
+}
+// fréquences de mise selon le style du joueur noté (ou joueur moyen)
+function styleFreq(id){
+  const v=villains.find(x=>String(x.id)===String(id));
+  return v?{vF:v.aggr<=2?0.6:0.9,bF:[0,0.08,0.18,0.35,0.55,0.75][v.aggr],name:v.name}:{vF:0.85,bF:0.35,name:null};
 }
 const STREETS=["Flop","Turn","River"];
 const newRv=()=>({table:tableSize,pos:"BTN",oppPos:"BB",villain:"",hero:[-1,-1],board:[-1,-1,-1,-1,-1],opp:[-1,-1],
@@ -1113,7 +1203,10 @@ function rvAnalyze(){
   const R=set.size?set:parseRange("tout").set;
   const oppKnown=rv.opp.every(c=>c>=0);
   const combos=[]; R.forEach(cl=>combosOf(cl).forEach(cb=>combos.push(cb)));
-  const rangeSpec={t:2,combos}, realSpec=oppKnown?{t:1,c:rv.opp}:null;
+  const rangeSpec={t:3,combos,w:new Float64Array(combos.length).fill(1)}, realSpec=oppKnown?{t:1,c:rv.opp}:null;
+  const sf=styleFreq(rv.villain);
+  const narrow=(bk,f)=>{ const cl=makeClassifier(bk); combos.forEach((cb,i)=>{ if(rangeSpec.w[i]>0) rangeSpec.w[i]*=f[cl(cb)]; }); };
+  const kept=bk=>{ let s=0,t=0; combos.forEach((cb,i)=>{ if(!H.includes(cb[0])&&!H.includes(cb[1])&&!bk.includes(cb[0])&&!bk.includes(cb[1])){ t++; s+=rangeSpec.w[i]; } }); return t?s/t:0; };
   const cls=classOf(H[0],H[1]);
   const add=(v,title,text)=>items.push({v,title,text});
   const nameAct={raise:"relancer",call:"payer",fold:"jeter",check:"checker"};
@@ -1137,10 +1230,14 @@ function rvAnalyze(){
   let stopped=act==="fold";
   for(let s=0;s<3&&!stopped&&3+s<=n;s++){
     const bk=rv.board.slice(0,3+s), st=rv.streets[s], pot=rvPot(s), ob=+st.obet||0, amt=+st.amt||0;
+    // il a payé ta mise au tour d'avant : il garde surtout ses mains correctes
+    if(s>0&&["bet","raise"].includes(rv.streets[s-1].act)) narrow(rv.board.slice(0,2+s),{value:1,medium:0.75,draw:0.8,air:0.1});
+    // il mise à ce tour : il a plus souvent du fort (et quelques bluffs selon son style)
+    if(ob>0) narrow(bk,{value:sf.vF,medium:0.15,draw:Math.min(1,sf.bF*1.4),air:sf.bF*0.8});
     const eq=quickEquity(H,bk,rangeSpec), eqR=realSpec?quickEquity(H,bk,realSpec):null;
     if(eq===null){ add("info",STREETS[s],"Aucune main de sa range n'est possible avec ces cartes : vérifie la range."); break; }
-    const sc2=evalArr([...H,...bk]);
-    const eqTxt=`Tu avais <b>${CAT[sc2>>20]}</b>${drawLabel(draws([...H,...bk]),sc2>>20,bk.length)}. Tes chances contre sa range : <b>${pc(eq)}</b>${eqR!==null?` (contre ses vraies cartes : ${pc(eqR)})`:""}.`;
+    const sc2=evalArr([...H,...bk]), k=kept(bk);
+    const eqTxt=`Tu avais <b>${CAT[sc2>>20]}</b>${drawLabel(draws([...H,...bk]),sc2>>20,bk.length)}. Tes chances contre sa range : <b>${pc(eq)}</b>${k<0.98?` <span class="help">(range resserrée : il garde environ ${pc(k,0)} de ses mains de départ)</span>`:""}${eqR!==null?` (contre ses vraies cartes : ${pc(eqR)})`:""}.`;
     if(st.act==="fold") stopped=true;
     if(pot===null||pot<=0){ add("info",STREETS[s],eqTxt+"<br>Indique le pot de ce tour pour avoir un verdict."); continue; }
     const more=s<2; let v="info",t="",x="";
@@ -1185,7 +1282,7 @@ function rvAnalyze(){
   out.innerHTML=(graded.length?`<div class="big" style="font-size:30px">${good} / ${graded.length}</div><p class="help">bonnes décisions${badN?` · ${badN} erreur${badN>1?"s":""} à corriger`:" · bravo !"}</p>`:"")
     +items.map(i=>`<div class="rvi rv-${i.v}"><b>${{good:"✅",ok:"⚠️",bad:"❌",info:"ℹ️"}[i.v]} ${i.title}</b><br>${i.text}</div>`).join("")
     +(set.size?"":'<p class="note">Tu n\'as pas indiqué de range : j\'ai compté qu\'il pouvait avoir n\'importe quelle main.</p>')
-    +'<p class="note">Les % sont calculés contre toutes les mains de sa range. Quand un joueur mise gros, il a souvent plus fort : si c\'était le cas, mets une range plus serrée et relance l\'analyse.</p>';
+    +`<p class="note">À chaque fois que l'adversaire mise ou paie, sa range est resserrée automatiquement : il garde surtout ses mains fortes, ses tirages et quelques bluffs${sf.name?`, selon le style noté pour ${esc(sf.name)}`:" (style d'un joueur moyen ; choisis un joueur noté pour plus de précision)"}.</p>`;
   saveRv(); renderRvStreets();
   return true;
 }
@@ -1243,10 +1340,10 @@ function renderVDetail(){
   box.innerHTML=`
     <div class="f"><label>Nom ou surnom</label><input type="text" id="vName" value="${esc(v.name)}"></div>
     <div class="f"><label>Comment le reconnaître</label><input type="text" id="vDesc" value="${esc(v.desc)}" placeholder="ex : casquette rouge, place 3"></div>
-    <h3>Combien de mains il joue</h3>
+    <h3>Combien de mains il joue <button class="q" data-q="serre" aria-label="Explication">?</button></h3>
     <div class="row"><span class="help">Serré</span><input type="range" min="1" max="5" id="vLoose" value="${v.loose}" style="flex:1"><span class="help">Large</span></div>
     <p class="help" id="vLooseT">${LOOSE_TXT[v.loose]}</p>
-    <h3>Comment il joue ses mains</h3>
+    <h3>Comment il joue ses mains <button class="q" data-q="agressif" aria-label="Explication">?</button></h3>
     <div class="row"><span class="help">Passif</span><input type="range" min="1" max="5" id="vAggr" value="${v.aggr}" style="flex:1"><span class="help">Agressif</span></div>
     <p class="help" id="vAggrT">${AGGR_TXT[v.aggr]}</p>
     <div class="rvi rv-ok" id="vProfile"><b>${p[0]}</b><br>${p[1]}<br><b>Comment jouer contre lui :</b> ${p[2]}</div>
@@ -1341,7 +1438,7 @@ function calcOdds(){
   $("oKpi").innerHTML=`
     <div><small>Cote du pot</small><b>${fr((pot+bet)/bet,2)} : 1</b><small>tu paies ${fr(bet,0)} pour gagner ${fr(pot+bet,0)}</small></div>
     <div><small>Chances nécessaires</small><b>${pc(need)}</b><small>minimum pour que payer soit rentable</small></div>
-    <div><small>MDF (défense GTO)</small><b>${pc(mdf)}</b><small>part de tes mains à ne pas jeter</small></div>
+    <div><small>MDF (défense GTO) <button class="q" data-q="mdf" aria-label="Explication">?</button></small><b>${pc(mdf)}</b><small>part de tes mains à ne pas jeter</small></div>
     <div><small>Gain moyen si tu paies</small><b style="color:${ev>=0?"var(--acc)":"var(--bad)"}">${ev>=0?"+":""}${fr(ev)}</b><small>jetons par call, en moyenne</small></div>`;
   let v;
   if(eq>=need) v=`<div class="verdict ok">✅ Payer est rentable : tu as ${pc(eq)}, il te faut ${pc(need)}.</div>`;
@@ -1463,18 +1560,49 @@ function solvePF(S,a,T=500){
 }
 const freqPct = fr_ => { let n=0; for(let i=0;i<169;i++) n+=fr_[i]*nCombos(GRID[i]); return n/1326; };
 function freqStyle(f,col){ return f<=0?"background:#4a1c22;color:#e9c9cc":`background:linear-gradient(to top, ${col} ${Math.round(f*100)}%, #4a1c22 ${Math.round(f*100)}%);color:${f>0.5?"#04140a":"#fff"}`; }
+// places pour faire tapis : [joueurs encore à parler derrière toi, nom]
+const PF_SEATS=[[1,"Petite blinde"],[2,"Bouton"],[3,"CO"],[4,"HJ"],[5,"LJ (UTG à 6 joueurs)"],[6,"UTG+2"],[7,"UTG+1"],[8,"UTG à 9 joueurs"]];
+// tapis depuis une place avec k joueurs derrière (approximation : chaque joueur derrière paie selon son meilleur choix)
+function solvePushSeat(S,a,k,n,T=80){
+  const N=169, hu=solvePF(S,a);
+  if(k===1) return {push:hu.push,call:hu.call};
+  const P=Float64Array.from(hu.push), Cb=new Float64Array(N).fill(0.3), Cx=new Float64Array(N).fill(0.2);
+  const Db=0.5+(n-2)*a, Dx=1.5+(n-2)*a, steal=1.5+(n-1)*a;
+  const brB=new Float64Array(N), brX=new Float64Array(N), brP=new Float64Array(N);
+  for(let t=1;t<=T;t++){
+    for(let j=0;j<N;j++){ // ceux qui parlent après : grosse blinde (a déjà payé 1) ou autre joueur
+      let wt=0,eq=0; for(let i=0;i<N;i++){ const w=WM[i*N+j]*P[i]; if(w){ wt+=w; eq+=w*EQM[j*N+i]; } }
+      const e=wt?eq/wt:0; brB[j]=e*(2*S+Db)-S>-1?1:0; brX[j]=e*(2*S+Dx)-S>0?1:0;
+    }
+    for(let i=0;i<N;i++){ // toi : tapis si ça rapporte plus que se coucher
+      let wt=0,cb=0,cx=0,eb=0,ex=0;
+      for(let j=0;j<N;j++){ const w=WM[i*N+j], e=EQM[i*N+j]; wt+=w; const xb=w*Cb[j], xx=w*Cx[j]; cb+=xb; cx+=xx; eb+=xb*e; ex+=xx*e; }
+      const pb=cb/wt, px=cx/wt, eB=cb?eb/cb:0.5, eX=cx?ex/cx:0.5;
+      const callX=1-Math.pow(1-px,k-1), pNo=(1-pb)*(1-callX), tot=pb+callX||1;
+      const evCalled=(pb*(eB*(2*S+Db)-S)+callX*(eX*(2*S+Dx)-S))/tot;
+      brP[i]=pNo*steal+(1-pNo)*evCalled>0?1:0;
+    }
+    const f=1/(t+1);
+    for(let i=0;i<N;i++){ P[i]+=(brP[i]-P[i])*f; Cb[i]+=(brB[i]-Cb[i])*f; Cx[i]+=(brX[i]-Cx[i])*f; }
+  }
+  const clean=x=>x>0.97?1:(x<0.03?0:x);
+  return {push:Array.from(P,clean), call:Array.from(Cb,clean)};
+}
 function runPF(){
   if(pfBusy) return;
   const S=Math.min(50,Math.max(1,+$("pfS").value||10)), a=Math.min(1,Math.max(0,+$("pfA").value||0));
+  const k=+$("pfSeat").value||1, place=PF_SEATS.find(x=>x[0]===k)[1], n=Math.max(tableSize,k+1);
   if(!WM) buildWM();
   const go=()=>{
-    pfRes=solvePF(S,a); pfRes.S=S; pfRes.a=a;
+    pfRes=solvePushSeat(S,a,k,n); pfRes.S=S; pfRes.a=a; pfRes.k=k; pfRes.place=place;
     drawGrid($("pfGridP"),(l,i)=>({style:freqStyle(pfRes.push[i],"var(--acc)")}));
     drawGrid($("pfGridC"),(l,i)=>({style:freqStyle(pfRes.call[i],"var(--acc2)")}));
-    $("pfInfoP").textContent=`Tapis avec ${pc(freqPct(pfRes.push))} des mains, le reste se couche.`;
-    $("pfInfoC").textContent=`Paie avec ${pc(freqPct(pfRes.call))} des mains face au tapis.`;
-    $("pfStatus").textContent=`Équilibre calculé pour ${fr(S,1)} grosses blindes${a?` avec une ante de ${fr(a,2)} bb`:""}.`;
-    store.set("pgto_pf",{S,a});
+    $("pfTitleP").textContent=`${place} : faire tapis`;
+    $("pfTitleC").textContent=k===1?"Grosse blinde : payer le tapis":`Grosse blinde : payer un tapis du ${place.split(" ")[0]}`;
+    $("pfInfoP").textContent=`Tapis avec ${pc(freqPct(pfRes.push))} des mains, le reste se couche${k>1?` (${k} joueurs derrière toi)`:""}.`;
+    $("pfInfoC").textContent=`Paie avec ${pc(freqPct(pfRes.call))} des mains face à ce tapis.`;
+    $("pfStatus").textContent=`${k===1?"Équilibre exact":"Approximation"} pour ${fr(S,1)} grosses blindes${a?` avec une ante de ${fr(a,2)} bb`:""}, depuis : ${place}.`;
+    store.set("pgto_pf",{S,a,k});
     pfBusy=false; $("pfRun").disabled=false;
   };
   pfBusy=true; $("pfRun").disabled=true;
@@ -1484,7 +1612,7 @@ function runPF(){
 function pfHandTxt(cls){
   if(!pfRes) return "Clique d'abord sur « Calculer l'équilibre ».";
   const i=GIDX[cls], f=x=>x>=1?"toujours":x<=0?"jamais":`${fr(x*100,0)} % du temps`;
-  return `<b>${cls}</b> à ${fr(pfRes.S,1)} bb : petite blinde fait tapis <b>${f(pfRes.push[i])}</b> · grosse blinde paie <b>${f(pfRes.call[i])}</b>.`;
+  return `<b>${cls}</b> à ${fr(pfRes.S,1)} bb : depuis ${pfRes.place||"Petite blinde"}, tapis <b>${f(pfRes.push[i])}</b> · la grosse blinde paie <b>${f(pfRes.call[i])}</b>.`;
 }
 
 /* ===================================================================
@@ -1492,6 +1620,19 @@ function pfHandTxt(cls){
 =================================================================== */
 let icmPlayers=store.get("pgto_icm",null)||[{n:"Moi",s:5000},{n:"Joueur 2",s:3000},{n:"Joueur 3",s:2000}];
 function icm(stacks,pay){
+  // les joueurs sans jetons sont éliminés : ils se partagent les dernières places
+  const alive=[], out=[];
+  stacks.forEach((s,i)=>(s>0?alive:out).push(i));
+  if(out.length&&alive.length){
+    const res=new Float64Array(stacks.length), sub=icmAlive(alive.map(i=>stacks[i]),pay.slice(0,alive.length));
+    alive.forEach((i,k)=>res[i]=sub[k]);
+    const rest=pay.slice(alive.length,stacks.length); let sum=0; for(const x of rest) sum+=x||0;
+    out.forEach(i=>res[i]=sum/out.length);
+    return res;
+  }
+  return icmAlive(stacks,pay);
+}
+function icmAlive(stacks,pay){
   const n=stacks.length, memo=new Map();
   function rec(mask){
     if(memo.has(mask)) return memo.get(mask);
@@ -1523,6 +1664,30 @@ function calcIcm(){
   const eq=icm(st,pay);
   $("icmOut").innerHTML=`<table><tr><th>Joueur</th><th class="r">Jetons</th><th class="r">Part des jetons</th><th class="r">Valeur ICM</th><th class="r">Part des prix</th></tr>
     ${icmPlayers.map((p,i)=>`<tr><td>${esc(p.n)}</td><td class="r">${st[i].toLocaleString("fr-FR")}</td><td class="r">${pc(st[i]/tot)}</td><td class="r"><b>${fr(eq[i],2)}</b></td><td class="r">${pc(eq[i]/pool)}</td></tr>`).join("")}</table>`;
+  calcIcmCall(st,pay,pool);
+}
+function calcIcmCall(st,pay,pool){
+  const out=$("icOut"), opts=icmPlayers.map((p,i)=>`<option value="${i}">${esc(p.n)}</option>`).join("");
+  for(const id of ["icMe","icHim"]){ const s=$(id), v=s.value; s.innerHTML=opts; if(v!==""&&+v<icmPlayers.length) s.value=v; }
+  if($("icMe").value===""||+$("icMe").value>=icmPlayers.length) $("icMe").value="0";
+  if($("icHim").value===$("icMe").value) $("icHim").value=$("icMe").value==="0"?"1":"0";
+  if(!st){ out.innerHTML=""; return; }
+  const me=+$("icMe").value, him=+$("icHim").value;
+  if(me===him){ out.innerHTML='<p class="err">Choisis deux joueurs différents.</p>'; return; }
+  const D=num("icDead"), e=Math.min(100,num("icEq"))/100, x=Math.min(st[me],st[him]);
+  if(!x||!pool){ out.innerHTML='<p class="help">Entre les tapis et les prix plus haut.</p>'; return; }
+  const W=st.slice(); W[me]+=x+D; W[him]-=x;      // tu paies et tu gagnes
+  const L=st.slice(); L[me]-=x; L[him]+=x+D;      // tu paies et tu perds
+  const F=st.slice(); F[him]+=D;                  // tu te couches
+  const ew=icm(W,pay)[me], el=icm(L,pay)[me], ef=icm(F,pay)[me];
+  const need=ew>el?(ef-el)/(ew-el):1, chipNeed=x/(2*x+D), evCall=e*ew+(1-e)*el, diff=evCall-ef;
+  out.innerHTML=`<div class="kpi">
+    <div><small>Chances nécessaires sans ICM</small><b>${pc(chipNeed)}</b><small>en comptant seulement les jetons</small></div>
+    <div><small>Chances nécessaires avec l'ICM</small><b style="color:var(--acc2)">${pc(need)}</b><small>en comptant les vrais prix</small></div>
+    <div><small>Payer au lieu de se coucher</small><b style="color:${diff>=0?"var(--acc)":"var(--bad)"}">${diff>=0?"+":""}${fr(diff,2)}</b><small>de gain moyen (en prix)</small></div></div>
+    ${Math.abs(e-need)<0.01?`<div class="verdict ok">⚖️ C'est pareil : payer ou se coucher rapporte autant.</div>`
+      :e>need?`<div class="verdict ok">✅ <b>Paie</b> : tu as ${pc(e)} de chances, il t'en faut ${pc(need)}.</div>`
+      :`<div class="verdict no">❌ <b>Couche-toi</b> : tu as ${pc(e)} de chances, mais l'ICM t'en demande ${pc(need)}.${e>=chipNeed?" Sans l'ICM tu aurais payé : c'est ici que les prix changent tout.":""}</div>`}`;
 }
 
 /* ===================================================================
@@ -1727,6 +1892,7 @@ function init(){
     if(t.dataset.pgrid!==undefined) openGrid(+t.dataset.pgrid);
     if(t.dataset.ans) answerQ(t.dataset.ans);
     if(t.id==="trNext") newQ();
+    const qb=t.closest("[data-q]"); if(qb){ e.preventDefault(); e.stopPropagation(); showGloss(qb.dataset.q); return; }
     if(t.id==="trPrep"){ t.disabled=true; if(!WM) buildWM(); computeEqm(p=>{ const e=$("trPrepP"); if(e) e.textContent=Math.round(p*100)+" %"; }, newQ); }
     if(t.dataset.go){ $("trMode").value=t.dataset.go; newQ(); $("trCard").scrollIntoView({behavior:"smooth"}); }
     if(t.dataset.tab){ showTab(t.dataset.tab); window.scrollTo(0,0); }
@@ -1805,7 +1971,9 @@ function init(){
   $("preHand").onkeydown=e=>{ if(e.key==="Enter") $("preCheck").click(); };
 
   // tapis ou fold
-  const pfs=store.get("pgto_pf",null); if(pfs){ $("pfS").value=pfs.S; $("pfA").value=pfs.a; }
+  $("pfSeat").innerHTML=PF_SEATS.map(([k,name])=>`<option value="${k}">${name}${k>1?` (${k} joueurs derrière)`:" (face à la grosse blinde)"}</option>`).join("");
+  const pfs=store.get("pgto_pf",null); if(pfs){ $("pfS").value=pfs.S; $("pfA").value=pfs.a; if(pfs.k) $("pfSeat").value=String(pfs.k); }
+  $("pfSeat").onchange=()=>{ if(EQM) runPF(); };
   $("pfRun").onclick=runPF;
   $("pfCheck").onclick=()=>$("pfAns").innerHTML=checkHand("pfHand",c=>`<p>${pfHandTxt(c)}</p>`);
   loadEqm();
@@ -1815,6 +1983,9 @@ function init(){
   $("icmPay").value=store.get("pgto_icmpay","50, 30, 20");
   $("icmPay").addEventListener("input",calcIcm);
   $("icmAdd").onclick=()=>{ icmPlayers.push({n:"Joueur "+(icmPlayers.length+1),s:1000}); renderIcmRows(); calcIcm(); };
+  ["icMe","icHim"].forEach(id=>$(id).addEventListener("change",calcIcm));
+  ["icDead","icEq"].forEach(id=>$(id).addEventListener("input",calcIcm));
+  $("icUseEq").onclick=()=>{ if(lastHeroEq!=null){ $("icEq").value=lastHeroEq.toFixed(1); calcIcm(); } else alert("Fais d'abord un calcul dans l'onglet « Chances »."); };
 
   // entraînement
   $("trMode").onchange=newQ;
@@ -1830,6 +2001,7 @@ function init(){
   };
   $("sExp").onclick=()=>{
     const backup={app:"flipflop",version:1,date:today(),sessions,villains,hands:rvList,scores:trScore};
+    store.set("pgto_lastbackup",Date.now()); const bn=$("backupBanner"); if(bn) bn.remove();
     const a=document.createElement("a");
     a.href=URL.createObjectURL(new Blob([JSON.stringify(backup)],{type:"application/json"}));
     a.download="flipflop-sauvegarde-"+today()+".json"; a.click();
@@ -1880,6 +2052,40 @@ function init(){
   $("vAdd").onclick=()=>{ const n=$("vNew").value.trim(); if(!n){ $("vNew").focus(); return; }
     const v={id:Date.now(),name:n,desc:"",loose:3,aggr:3,notes:""}; villains.push(v); curVillain=v.id; $("vNew").value=""; renderVillains(); renderRv(); };
   $("vNew").onkeydown=e=>{ if(e.key==="Enter") $("vAdd").click(); };
+
+  // lexique complet (onglet Apprendre)
+  $("lexique").innerHTML=Object.values(GLOSS).sort((a,b)=>a[0].localeCompare(b[0],"fr")).map(([t,d])=>`<dt>${esc(t)}</dt><dd>${esc(d)}</dd>`).join("");
+  $("glossAll").onclick=()=>{ $("gloss").classList.remove("on"); showTab("tr"); $("lexDetails").open=true; setTimeout(()=>$("lexDetails").scrollIntoView({behavior:"smooth"}),50); };
+
+  // visite guidée (au premier lancement, ou depuis Apprendre)
+  const TOUR=[
+    ["👋","Bienvenue sur Flip&Flop","Ton assistant pour progresser au poker. L'appli a 4 parties : ce sont les 4 boutons en bas de l'écran."],
+    ["🎯","Jouer","Tes chances de gagner une main, les mains à jouer avant le flop selon ta place, et si payer une mise est rentable."],
+    ["🏆","Tournoi","Quand faire tapis avec peu de jetons, et ce que valent vraiment tes jetons en euros (ICM)."],
+    ["🔍","Analyser","Après la partie : revois tes mains pour trouver tes erreurs, note les joueurs, et suis tes gains."],
+    ["🎓","Apprendre","Des cours simples et des exercices corrigés. Partout dans l'appli, touche les petits « ? » pour comprendre un mot."]
+  ];
+  let tourStep=0;
+  const drawTour=()=>{ const [e,t,d]=TOUR[tourStep]; $("tourE").textContent=e; $("tourT").textContent=t; $("tourD").textContent=d;
+    $("tourDots").innerHTML=TOUR.map((_,i)=>`<i class="${i===tourStep?"on":""}"></i>`).join("");
+    $("tourNext").textContent=tourStep===TOUR.length-1?"C'est parti !":"Suivant →"; $("tourSkip").style.visibility=tourStep===TOUR.length-1?"hidden":"visible"; };
+  const endTour=()=>{ $("tour").classList.remove("on"); store.set("pgto_tour_done",true); };
+  const startTour=()=>{ tourStep=0; drawTour(); $("tour").classList.add("on"); };
+  $("tourNext").onclick=()=>{ if(tourStep<TOUR.length-1){ tourStep++; drawTour(); } else endTour(); };
+  $("tourSkip").onclick=endTour;
+  $("tourAgain").onclick=startTour;
+  if(!store.get("pgto_tour_done",false)) startTour();
+
+  // rappel de sauvegarde : une fois par mois s'il y a des données
+  const DAY=86400000, now=Date.now(), lastB=store.get("pgto_lastbackup",0);
+  if((sessions.length||villains.length||rvList.length)&&now-lastB>30*DAY&&now>store.get("pgto_backup_snooze",0)){
+    const b=document.createElement("div"); b.className="banner"; b.id="backupBanner";
+    b.innerHTML=`<span>💾 ${lastB?`Ta dernière sauvegarde date de ${Math.floor((now-lastB)/DAY)} jours.`:"Tu n'as encore jamais sauvegardé tes données."} Pense à les sauvegarder pour ne rien perdre.</span>
+      <button class="btn small" id="bnSave">Sauvegarder maintenant</button><button class="btn sec small" id="bnLater">Plus tard</button>`;
+    document.querySelector("main").prepend(b);
+    $("bnSave").onclick=()=>$("sExp").click();
+    $("bnLater").onclick=()=>{ store.set("pgto_backup_snooze",now+7*DAY); b.remove(); };
+  }
 
   renderEq(); renderRv(); renderRvList(); renderVillains(); calcOdds(); calcBluff(); calcOuts(); calcSpr(); drawPre(); renderIcmRows(); calcIcm(); renderSessions();
 

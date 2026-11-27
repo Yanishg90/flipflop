@@ -1,5 +1,5 @@
 // Permet à l'appli de marcher sans internet une fois installée.
-const CACHE = "flipflop-v10";
+const CACHE = "flipflop-v11";
 const FILES = ["./", "index.html", "manifest.webmanifest", "icon-192.png", "icon-512.png"];
 
 self.addEventListener("install", e => {

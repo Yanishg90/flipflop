@@ -235,6 +235,7 @@ details ul{padding-left:20px;margin:6px 0}
    <div class="card">
     <h2>1. Ta main</h2>
     <div class="f"><label>Joueurs à la table</label><select id="rvTable"><option value="6">6 joueurs (en ligne)</option><option value="9">9 joueurs (casino, club)</option></select></div>
+    <div class="f"><label>Ton tapis</label><select id="rvDepth"><option value="100">60 grosses blindes ou plus</option><option value="40">Entre 30 et 60 grosses blindes</option><option value="20">Entre 15 et 30 grosses blindes</option></select></div>
     <div class="f"><label>Ta place à la table</label><select id="rvPos"></select></div>
     <div class="row"><button class="btn" id="rvPhotoBtn">📸 Remplir avec une photo</button><input type="file" id="rvPhoto" accept="image/*" capture="environment" hidden></div>
     <p class="help">Après la partie : repose tes 2 cartes en bas, le tableau au milieu, les cartes de l'adversaire en haut (s'il les a montrées), puis prends la photo.</p>
@@ -266,7 +267,7 @@ details ul{padding-left:20px;margin:6px 0}
     <p class="help">Les montants peuvent être en jetons ou en euros, peu importe.</p>
     <h3>Avant le flop</h3>
     <div class="f"><label>Avant toi…</label><select id="rvPreSit"><option value="open">personne n'avait relancé</option><option value="raised">l'adversaire avait relancé</option><option value="3bet">j'avais relancé, il a sur-relancé (3-bet)</option></select></div>
-    <div class="f"><label>Tu as…</label><select id="rvPreAct"><option value="raise">relancé</option><option value="call">payé (suivi)</option><option value="fold">jeté</option><option value="check">checké (grosse blinde)</option></select></div>
+    <div class="f"><label>Tu as…</label><select id="rvPreAct"><option value="raise">relancé</option><option value="call">payé (suivi)</option><option value="shove">fait tapis</option><option value="fold">jeté</option><option value="check">checké (grosse blinde)</option></select></div>
     <div id="rvStreets"></div>
     <div class="row"><button class="btn" id="rvRun">Analyser la main</button><button class="btn sec small" id="rvSave">Enregistrer</button><button class="btn sec small" id="rvNew">Nouvelle main</button></div>
    </div>
@@ -1275,6 +1276,7 @@ function renderRv(){
   const P=+rv.table===9?POS9:POS6;
   if(!P.includes(rv.pos)) rv.pos="BTN"; if(!P.includes(rv.oppPos)) rv.oppPos="BB";
   $("rvTable").value=+rv.table===9?"9":"6";
+  $("rvDepth").value=String([100,40,20].includes(+rv.depth)?+rv.depth:100);
   $("rvPos").innerHTML=opt(P,rv.pos); $("rvOppPos").innerHTML=opt(P,rv.oppPos);
   $("rvHero").innerHTML=rv.hero.map((c,i)=>slotHtml(c,"rh"+i)).join("");
   $("rvBoard").innerHTML=rv.board.map((c,i)=>slotHtml(c,"rb"+i)+(i===2||i===3?'<div class="sep"></div>':"")).join("");
@@ -1301,16 +1303,10 @@ function renderRvStreets(){
   $("rvStreets").innerHTML=h;
 }
 function rvScenario(){
-  const t9=+rv.table===9;
-  if(rv.preSit==="open") return rv.pos==="BB"?null:{s:SCEN.find(x=>x.id===(t9?"open9_":"open_")+rv.pos)||SCEN.find(x=>x.id==="open_"+rv.pos),approx:false};
-  if(rv.preSit==="3bet") return {s:SCEN.find(x=>x.id===(["CO","BTN","SB"].includes(rv.pos)?"vs3b_lp":"vs3b_ep")),approx:false};
-  let s=SCEN.find(x=>!x.open&&x.id===(rv.pos+"_"+rv.oppPos).toLowerCase()), approx=false;
-  if(!s){
-    approx=true; const early=["UTG","UTG+1","UTG+2","LJ","HJ"].includes(rv.oppPos);
-    const id=rv.pos==="BB"?(early?"bb_utg":rv.oppPos==="CO"?"bb_co":rv.oppPos==="SB"?"bb_sb":"bb_btn"):rv.pos==="SB"?"sb_btn":(early?"co_utg":"btn_co");
-    s=SCEN.find(x=>x.id===id);
-  }
-  return {s,approx};
+  const t9=+rv.table===9, d=+rv.depth||100;
+  if(rv.preSit==="open") return rv.pos==="BB"?null:{s:scen((t9?"open9_":"open_")+rv.pos,d)||scen("open_"+rv.pos,d),approx:false};
+  if(rv.preSit==="3bet") return {s:scen(["CO","BTN","SB"].includes(rv.pos)?"vs3b_lp":"vs3b_ep",d),approx:false};
+  return scenFacing(rv.pos,rv.oppPos,d);
 }
 function rvAnalyze(){
   const out=$("rvOut"), H=rv.hero, items=[];
@@ -1330,7 +1326,7 @@ function rvAnalyze(){
   const kept=bk=>{ let s=0,t=0; combos.forEach((cb,i)=>{ if(!H.includes(cb[0])&&!H.includes(cb[1])&&!bk.includes(cb[0])&&!bk.includes(cb[1])){ t++; s+=rangeSpec.w[i]; } }); return t?s/t:0; };
   const cls=classOf(H[0],H[1]);
   const add=(v,title,text)=>items.push({v,title,text});
-  const nameAct={raise:"relancer",call:"payer",fold:"jeter",check:"checker"};
+  const nameAct={raise:"relancer",call:"payer",fold:"jeter",check:"checker",shove:"faire tapis"};
   // --- avant le flop
   const eqPre=quickEquity(H,[],rangeSpec), sc=rvScenario(), act=rv.preAct; let pre;
   if(!sc){
@@ -1339,8 +1335,9 @@ function rvAnalyze(){
   } else {
     const rec=actionOf(sc.s,cls), a=act==="check"?"call":act;
     const recTxt=rec==="raise"?raiseLabel(sc.s).toLowerCase():nameAct[rec];
-    const where=`« ${sc.s.name} »`+(sc.approx?" (le tableau le plus proche de ta situation)":"");
-    if(a===rec) pre=["good",`Bonne décision : ${nameAct[a]}`,`${cls} dans la situation ${where} : le GTO dit ${recTxt}.`];
+    const where=`« ${sc.s.name} »${sc.s.depth!==100?` à environ ${sc.s.depth} grosses blindes`:""}`+(sc.approx?" (le tableau le plus proche de ta situation)":"");
+    if(a!==rec&&(a==="raise"||a==="shove")&&(rec==="raise"||rec==="shove")) pre=["good",`Bonne décision : ${nameAct[a]}`,`${cls} dans la situation ${where} : le GTO dit ${recTxt}. Relancer ou faire tapis, les deux sont jouables ici.`];
+    else if(a===rec) pre=["good",`Bonne décision : ${nameAct[a]}`,`${cls} dans la situation ${where} : le GTO dit ${recTxt}.`];
     else if(sc.s.open&&a==="call") pre=["ok","Évite de juste payer (« limp »)",`Quand personne n'a relancé, on relance ou on jette, presque jamais « payer ». Ici le GTO dit : ${recTxt}.`];
     else if(rec==="fold") pre=["bad","Main trop faible pour jouer",`${cls} dans la situation ${where} : le GTO dit de jeter. Jouer ces mains fait perdre de l'argent à long terme.`];
     else if(a==="fold") pre=["bad","Tu as jeté une bonne main",`${cls} dans la situation ${where} : le GTO dit ${recTxt}.`];
@@ -1665,12 +1662,12 @@ function hhPositions(h){
   for(const [p,k] of h.posts){ if(k==="sb") pos[p]="SB"; if(k==="bb") pos[p]="BB"; }
   return pos;
 }
-function scenFacing(pos,opPos){
-  let s=SCEN.find(x=>!x.open&&x.id===(pos+"_"+opPos).toLowerCase());
+function scenFacing(pos,opPos,d){
+  let s=SCEN.find(x=>!x.open&&x.id===(pos+"_"+opPos).toLowerCase()+sfx(d));
   if(s) return {s,approx:false};
   const early=["UTG","UTG+1","UTG+2","LJ","HJ"].includes(opPos);
   const id=pos==="BB"?(early?"bb_utg":opPos==="CO"?"bb_co":opPos==="SB"?"bb_sb":"bb_btn"):pos==="SB"?"sb_btn":(early?"co_utg":"btn_co");
-  return {s:SCEN.find(x=>x.id===id),approx:true};
+  return {s:scen(id,d),approx:true};
 }
 const PRE_ERR={
   open_large:["Mains trop faibles jouées en premier","Tu as ouvert (ou payé) avec des mains que le tableau préflop dit de jeter. Ces mains perdent de l'argent à long terme : jette-les."],
@@ -1738,15 +1735,20 @@ function hhInfo(h){
   // adversaire principal (pour « Revoir »)
   const stayed=others.filter(o=>!h.acts.some(x=>x[1]===o&&x[2]==="f"));
   I.villain=(stayed.length?stayed:others).sort((a,b)=>h.acts.filter(x=>x[1]===b).length-h.acts.filter(x=>x[1]===a).length)[0];
-  // --- erreur préflop par rapport aux tableaux (tapis d'au moins 25 grosses blindes)
-  if(eff>=25&&n>=3&&heroFirst){
+  // --- erreur préflop par rapport aux tableaux : 100, 40 ou 20 grosses blindes selon ton tapis (en dessous de 15 : tapis ou fold)
+  const dep=depthOfBB(eff); I.depth=dep;
+  if(dep&&n>=3&&heroFirst){
     let sc=null, act=heroFirst;
-    if(I.spot==="open"&&I.pos!=="BB") sc={s:SCEN.find(x=>x.id===(tt===6?"open_":"open9_")+I.pos)};
-    else if(I.spot==="raised"&&I.opener>=0) sc=scenFacing(I.pos,pos[I.opener]);
-    if(I.f3Opp){ sc={s:SCEN.find(x=>x.id===(["CO","BTN","SB"].includes(I.pos)?"vs3b_lp":"vs3b_ep"))}; act=I.act3; }
+    if(I.spot==="open"&&I.pos!=="BB") sc={s:scen((tt===6?"open_":"open9_")+I.pos,dep)};
+    else if(I.spot==="raised"&&I.opener>=0) sc=scenFacing(I.pos,pos[I.opener],dep);
+    if(I.f3Opp){ sc={s:scen(["CO","BTN","SB"].includes(I.pos)?"vs3b_lp":"vs3b_ep",dep)}; act=I.act3; }
     if(sc&&sc.s&&act!=="x"){
-      const a={r:"raise",c:"call",f:"fold"}[act], rec=actionOf(sc.s,I.cls); I.scen=sc.s; I.act=a; I.rec=rec;
-      if(a!==rec){
+      // ta relance était-elle un tapis ?
+      const mine=pre.filter(x=>x[1]===H), e=I.f3Opp?mine[1]:mine[0];
+      const shove=act==="r"&&e&&e[4]>=(h.seats[H][2]-h.ante)*0.95;
+      const a=shove?"shove":{r:"raise",c:"call",f:"fold"}[act], rec=actionOf(sc.s,I.cls); I.scen=sc.s; I.act=a; I.rec=rec;
+      const aggro=x=>x==="raise"||x==="shove";
+      if(a!==rec&&!(aggro(a)&&aggro(rec))){
         const first=sc.s.open;
         I.err=rec==="fold"?(first?"open_large":"def_large"):a==="fold"?(first?"open_serre":"def_serre"):(first&&a==="call")?"limp":"mix";
       }
@@ -1855,7 +1857,7 @@ function renderHH(){
       ${["UTG","UTG+1","UTG+2","LJ","HJ","CO","BTN","SB","BB"].filter(k=>S.pos[k]).map(k=>{ const q=S.pos[k]; return `<tr><td>${k}</td><td class="r">${q.n}</td><td class="r">${pc(q.vpip/q.n,0)}</td><td class="r">${pc(q.pfr/q.n,0)}</td><td class="r" style="color:${q.bb>=0?"var(--acc)":"var(--bad)"}">${q.bb>=0?"+":""}${fr(q.bb,1)} bb</td></tr>`; }).join("")}</table></div></div>
   </div><div class="col">
     <div class="card"><h2>🃏 Mes erreurs avant le flop</h2>
-      <p class="help">Chaque décision avant le flop est comparée aux tableaux préflop (quand tu avais au moins 25 grosses blindes).</p>
+      <p class="help">Chaque décision avant le flop est comparée aux tableaux préflop (tableau de 100, 40 ou 20 grosses blindes selon ton tapis ; en dessous de 15, c'est « Tapis ou fold » qui compte).</p>
       ${Object.keys(S.errs).length?Object.entries(S.errs).sort((a,b)=>b[1].length-a[1].length).map(([k,arr])=>`<details><summary>${PRE_ERR[k][0]} : ${arr.length}</summary><p class="help">${PRE_ERR[k][1]}</p>${hhRows(arr.slice(0,12))}</details>`).join(""):'<p>Aucune erreur préflop trouvée 👏</p>'}
     </div>
     <div class="card"><h2>🗂️ Mes mains</h2>
@@ -2032,9 +2034,9 @@ function hhToRv(h){
   else if(vpos==="BB") range=FACING[0].raise+", "+FACING[0].call;
   else if(OP[vpos]) range=OP[vpos];
   const map={r:"raise",c:"call",f:"fold",x:"check",b:"bet"};
-  const preAct=I.f3Opp?map[I.act3]:I.heroFirst?map[I.heroFirst]:"check";
+  const preAct=I.act==="shove"?"shove":I.f3Opp?map[I.act3]:I.heroFirst?map[I.heroFirst]:"check";
   const r=newRv();
-  Object.assign(r,{table:tt,pos:I.pos,oppPos:vpos,hero:h.cards.slice(),opp:h.shows[V]?h.shows[V].slice():[-1,-1],range,
+  Object.assign(r,{table:tt,depth:I.depth||20,pos:I.pos,oppPos:vpos,hero:h.cards.slice(),opp:h.shows[V]?h.shows[V].slice():[-1,-1],range,
     preSit:I.f3Opp?"3bet":(I.spot==="raised"||I.spot==="3bet+")?"raised":"open",preAct:preAct==="bet"?"raise":preAct});
   r.board=[-1,-1,-1,-1,-1]; h.board.forEach((c,i)=>r.board[i]=c);
   const v=villains.find(x=>x.name===h.seats[V][0]); r.villain=v?String(v.id):"";
@@ -2807,6 +2809,7 @@ function init(){
   $("rvRange").oninput=e=>{ rv.range=e.target.value; saveRv(); $("rvRinfo").innerHTML=rangeInfo(rv.range); };
   $("rvPreSit").onchange=e=>{ rv.preSit=e.target.value; saveRv(); };
   $("rvTable").onchange=e=>{ rv.table=+e.target.value; saveRv(); renderRv(); };
+  $("rvDepth").onchange=e=>{ rv.depth=+e.target.value; saveRv(); };
   { const c=photoCfg(); $("rvPhUrl").value=c.url; $("rvPhCode").value=c.code; }
   $("rvPhSave").onclick=()=>{ const url=$("rvPhUrl").value.trim(), code=$("rvPhCode").value.trim();
     if(url&&!/^https:\/\//.test(url)){ $("rvPhInfo").textContent="L'adresse doit commencer par https://"; return; }

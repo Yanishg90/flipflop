@@ -23,7 +23,14 @@ h1{margin:0;font-size:20px} h1 span{color:var(--acc)}
 nav{display:flex;gap:6px;overflow-x:auto;padding:10px 0;max-width:1150px;margin:0 auto;scrollbar-width:thin}
 nav button{flex:0 0 auto;background:var(--panel);color:var(--txt);border:1px solid var(--line);padding:8px 12px;border-radius:8px;cursor:pointer;font-size:14px;white-space:nowrap}
 nav button.on{background:var(--acc);color:#04140a;border-color:var(--acc);font-weight:700}
-main{max-width:1150px;margin:0 auto;padding:16px 16px 80px}
+main{max-width:1150px;margin:0 auto;padding:16px 16px calc(100px + env(safe-area-inset-bottom))}
+#nav:empty{display:none}
+#mainnav{position:fixed;left:0;right:0;bottom:0;z-index:8;display:grid;grid-template-columns:repeat(4,1fr);background:#0a120d;border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom);box-shadow:0 -4px 14px #0008}
+#mainnav button{background:none;border:none;color:var(--mute);padding:8px 2px 10px;font-size:13px;font-weight:600;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;font-family:inherit}
+#mainnav button span{font-size:24px;line-height:1.1;filter:grayscale(.6);opacity:.75}
+#mainnav button.on{color:var(--acc)}
+#mainnav button.on span{filter:none;opacity:1}
+@media(min-width:861px){#mainnav{left:50%;right:auto;transform:translateX(-50%);width:560px;border:1px solid var(--line);border-bottom:none;border-radius:14px 14px 0 0}}
 .tab{display:none}.tab.on{display:block}
 .intro{color:var(--mute);margin:0 0 14px}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
@@ -79,11 +86,16 @@ td.r,th.r{text-align:right}
 .modal{position:fixed;inset:0;background:#000b;display:none;align-items:center;justify-content:center;z-index:20;padding:10px}
 .modal.on{display:flex}
 .modal .box{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;max-width:100%;max-height:96vh;overflow:auto}
-.deck{display:grid;grid-template-columns:repeat(13,40px);gap:5px}
-.pc{width:40px;height:52px;border-radius:6px;background:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;cursor:pointer;font-size:15px}
-.pc.dead{opacity:.15;cursor:default}
-.pc:not(.dead):hover{outline:3px solid var(--acc2)}
-@media(max-width:640px){.deck{grid-template-columns:repeat(13,1fr);gap:2px;width:calc(100vw - 50px)}.pc{width:auto;height:42px;font-size:11px}}
+#picker .box{width:min(440px,100%)}
+.ranks{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.ranks button{height:54px;font-size:21px;font-weight:800;border-radius:9px;background:#fff;color:#111;border:none;cursor:pointer;line-height:1;font-family:inherit;padding:0}
+.ranks button small{display:block;font-size:10px;font-weight:600;color:#777;margin-top:3px}
+.ranks button.sel{background:var(--acc2);box-shadow:0 0 0 3px #fff inset}
+.ranks button:disabled{opacity:.18;cursor:default}
+.suits{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.suits button{height:70px;font-size:38px;border-radius:11px;background:#fff;border:none;cursor:pointer;font-family:inherit;padding:0}
+.suits button:disabled{opacity:.15;cursor:default}
+.suits button:not(:disabled):hover,.ranks button:not(:disabled):hover{outline:3px solid var(--acc2)}
 /* grille des mains */
 .rg{display:grid;grid-template-columns:repeat(13,1fr);gap:2px;width:100%;max-width:560px;user-select:none;touch-action:none}
 .rg div{aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:clamp(8px,2.3vw,12px);border-radius:3px;background:#24382c;color:#cfe0d4;cursor:pointer;font-weight:600}
@@ -117,18 +129,14 @@ details ul{padding-left:20px;margin:6px 0}
     <h1><span style="color:#fff">♣</span> Flip<span>&amp;</span>Flop</h1>
     <button class="btn small" id="installBtn">📲 Installer l'appli</button>
   </div>
-  <nav id="nav">
-    <button data-t="eq">🎯 Chances</button>
-    <button data-t="pre">🃏 Préflop</button>
-    <button data-t="odds">🧮 Cotes</button>
-    <button data-t="pf">⚡ Tapis ou fold</button>
-    <button data-t="icm">🏆 ICM tournoi</button>
-    <button data-t="rev">🔍 Revoir une main</button>
-    <button data-t="vil">👥 Joueurs</button>
-    <button data-t="tr">🎓 Apprendre</button>
-    <button data-t="ses">📒 Mes sessions</button>
-  </nav>
+  <nav id="nav"></nav>
 </header>
+<nav id="mainnav">
+  <button data-g="jouer"><span>🎯</span>Jouer</button>
+  <button data-g="tournoi"><span>🏆</span>Tournoi</button>
+  <button data-g="analyser"><span>🔍</span>Analyser</button>
+  <button data-g="apprendre"><span>🎓</span>Apprendre</button>
+</nav>
 
 <main>
 <!-- ================= CHANCES ================= -->
@@ -167,6 +175,13 @@ details ul{padding-left:20px;margin:6px 0}
     </div>
     <div id="out"><p class="help">Choisis tes cartes puis clique sur « Calculer ».</p></div>
    </div>
+   <div class="card" id="hmCard" style="display:none">
+    <h2>🗺️ Ses mains, une par une</h2>
+    <p class="help" id="hmTitle"></p>
+    <div class="legend"><span><i style="background:var(--acc)"></i>tu es devant</span><span><i style="background:var(--acc2)"></i>c'est serré</span><span><i style="background:#c0392b"></i>il est devant</span><span><i style="background:#24382c;opacity:.35"></i>il ne joue pas cette main</span></div>
+    <div class="rg ro" id="hmGrid"></div>
+    <p id="hmCell" class="help">Touche une case pour voir tes chances contre cette main.</p>
+   </div>
    <div class="card">
     <h2>Analyse du tableau</h2>
     <div id="anal"><p class="help">Pose au moins le flop puis clique sur « Calculer » : tu verras tes outs, tes tirages et ce que l'adversaire peut avoir.</p></div>
@@ -196,6 +211,7 @@ details ul{padding-left:20px;margin:6px 0}
   <div class="col">
    <div class="card">
     <h2>1. Ta main</h2>
+    <div class="f"><label>Joueurs à la table</label><select id="rvTable"><option value="6">6 joueurs (en ligne)</option><option value="9">9 joueurs (casino, club)</option></select></div>
     <div class="f"><label>Ta place à la table</label><select id="rvPos"></select></div>
     <p class="help">Tes cartes :</p>
     <div class="slots" id="rvHero"></div>
@@ -218,7 +234,7 @@ details ul{padding-left:20px;margin:6px 0}
     <h2>3. Ce qui s'est passé</h2>
     <p class="help">Les montants peuvent être en jetons ou en euros, peu importe.</p>
     <h3>Avant le flop</h3>
-    <div class="f"><label>Avant toi…</label><select id="rvPreSit"><option value="open">personne n'avait relancé</option><option value="raised">l'adversaire avait relancé</option></select></div>
+    <div class="f"><label>Avant toi…</label><select id="rvPreSit"><option value="open">personne n'avait relancé</option><option value="raised">l'adversaire avait relancé</option><option value="3bet">j'avais relancé, il a sur-relancé (3-bet)</option></select></div>
     <div class="f"><label>Tu as…</label><select id="rvPreAct"><option value="raise">relancé</option><option value="call">payé (suivi)</option><option value="fold">jeté</option><option value="check">checké (grosse blinde)</option></select></div>
     <div id="rvStreets"></div>
     <div class="row"><button class="btn" id="rvRun">Analyser la main</button><button class="btn sec small" id="rvSave">Enregistrer</button><button class="btn sec small" id="rvNew">Nouvelle main</button></div>
@@ -315,11 +331,12 @@ details ul{padding-left:20px;margin:6px 0}
 
 <!-- ================= PREFLOP ================= -->
 <section id="t-pre" class="tab">
- <p class="intro">Quelles mains jouer avant le flop, selon ta place à la table. Table à 6 joueurs, tapis de 100 grosses blindes. Ranges proches de celles des solveurs (approchées).</p>
+ <p class="intro">Quelles mains jouer avant le flop, selon ta place à la table. Choisis 6 joueurs (en ligne) ou 9 joueurs (casino, club). Tapis de 100 grosses blindes. Ranges proches de celles des solveurs (approchées).</p>
  <div class="grid2">
   <div class="card">
    <h2>Tableau des mains</h2>
-   <div class="row"><select id="preScen" style="flex:1"></select></div>
+   <div class="row"><select id="preTable" style="flex:1;max-width:100%"><option value="6">Table de 6 joueurs (en ligne)</option><option value="9">Table de 9 joueurs (casino, club)</option></select></div>
+   <div class="row"><select id="preScen" style="flex:1;max-width:100%"></select></div>
    <div class="legend" id="preLegend"></div>
    <div class="rg ro" id="preGrid"></div>
    <p class="note">En haut à droite : mains assorties (s, même couleur). En bas à gauche : dépareillées (o). Diagonale : les paires. T = 10. Touche une case pour la voir en détail.</p>
@@ -485,7 +502,10 @@ details ul{padding-left:20px;margin:6px 0}
 <!-- choix de carte -->
 <div class="modal" id="picker"><div class="box">
   <div class="row" style="justify-content:space-between;margin-top:0"><b>Choisis une carte</b><button class="btn sec small" data-close="picker">Fermer</button></div>
-  <div class="deck" id="deck"></div>
+  <p class="help">1. Touche la valeur</p>
+  <div class="ranks" id="pkRanks"></div>
+  <p class="help" style="margin-top:14px">2. Touche la couleur</p>
+  <div class="suits" id="pkSuits"></div>
 </div></div>
 
 <!-- grille de range -->
@@ -644,18 +664,40 @@ const FACING = [
    call:"99-22, ATs-A6s, KJs-KTs, QJs-QTs, JTs-J9s, T9s, 98s, 87s, 76s, 65s, AJo, KQo"},
   {id:"co_utg", name:"CO contre une relance UTG", short:"CO vs UTG",
    raise:"QQ+, AKs, AQs, AKo, A5s, KQs",
-   call:"JJ-77, AJs-ATs, KJs, QJs, JTs, T9s, AQo"}
+   call:"JJ-77, AJs-ATs, KJs, QJs, JTs, T9s, AQo"},
+  {id:"bb_sb", name:"Grosse blinde contre une relance de la petite blinde", short:"BB vs SB",
+   raise:"88+, ATs+, A5s-A2s, KTs+, QJs, AJo+, KQo",
+   call:"77-22, A9s-A6s, K9s-K2s, QTs-Q2s, J4s+, T5s+, 95s+, 85s+, 74s+, 63s+, 53s+, 43s, ATo-A2o, KJo-K5o, QJo-Q8o, JTo-J8o, T8o+, 98o, 87o, 76o"},
+  {id:"vs3b_lp", name:"Tu as ouvert au bouton ou au CO, et on te sur-relance (3-bet)", short:"3-bet subi (BTN/CO)", r4:true,
+   raise:"QQ+, AKs, AKo, A5s, A4s",
+   call:"JJ-55, AQs-ATs, KQs-KTs, QJs-QTs, JTs, T9s, 98s, 87s, 76s, AQo, KQo"},
+  {id:"vs3b_ep", name:"Tu as ouvert en début de table, et on te sur-relance (3-bet)", short:"3-bet subi (UTG)", r4:true,
+   raise:"KK+, AKs, A5s",
+   call:"QQ-88, AKo, AQs-AJs, KQs, KJs, QJs, JTs, T9s"}
 ];
-const POS_NAMES={UTG:"UTG (premier à parler)",HJ:"HJ",CO:"CO (avant le bouton)",BTN:"Bouton",SB:"Petite blinde"};
+/* ---- table de 9 joueurs (casino, club) : début de table plus serré ---- */
+const OPEN9 = {
+  "UTG":"66+, A9s+, A5s, KTs+, QTs+, JTs, T9s, AJo+, KQo",
+  "UTG+1":"55+, A8s+, A5s-A4s, KTs+, QTs+, JTs, T9s, 98s, ATo+, KQo",
+  "UTG+2":"44+, A7s+, A5s-A3s, K9s+, Q9s+, J9s+, T9s, 98s, 87s, ATo+, KJo+",
+  "LJ":OPEN.UTG, "HJ":OPEN.HJ, "CO":OPEN.CO, "BTN":OPEN.BTN, "SB":OPEN.SB
+};
+const POS_NAMES={"UTG":"UTG (premier à parler)","UTG+1":"UTG+1","UTG+2":"UTG+2","LJ":"LJ","HJ":"HJ","CO":"CO (avant le bouton)","BTN":"Bouton","SB":"Petite blinde"};
+const POS6=["UTG","HJ","CO","BTN","SB","BB"], POS9=["UTG","UTG+1","UTG+2","LJ","HJ","CO","BTN","SB","BB"];
+let tableSize=store.get("pgto_table",6)===9?9:6;
 const SCEN = [];
-for(const [p,txt] of Object.entries(OPEN)) SCEN.push({id:"open_"+p, open:true, pos:p, name:"Ouvrir depuis "+POS_NAMES[p], short:"Ouvrir "+p, raise:parseRange(txt).set, call:new Set()});
-for(const f of FACING) SCEN.push({id:f.id, open:false, name:f.name, short:f.short, raise:parseRange(f.raise).set, call:parseRange(f.call).set});
+for(const [p,txt] of Object.entries(OPEN)) SCEN.push({id:"open_"+p, table:6, open:true, pos:p, name:"Ouvrir depuis "+POS_NAMES[p], short:"Ouvrir "+p, raise:parseRange(txt).set, call:new Set()});
+for(const [p,txt] of Object.entries(OPEN9)) SCEN.push({id:"open9_"+p, table:9, open:true, pos:p, name:"Ouvrir depuis "+POS_NAMES[p], short:"Ouvrir "+p, raise:parseRange(txt).set, call:new Set()});
+for(const f of FACING) SCEN.push({id:f.id, table:0, open:false, r4:!!f.r4, name:f.name, short:f.short, raise:parseRange(f.raise).set, call:parseRange(f.call).set});
+const scenList = () => SCEN.filter(s=>!s.table||s.table===tableSize);
 const actionOf = (s,cls) => s.raise.has(cls)?"raise":(s.call.has(cls)?"call":"fold");
 const ACT = {raise:["Relancer","pr"], call:["Suivre","pk"], fold:["Jeter","pf"]};
-const actPill = (a,open) => `<span class="pill ${ACT[a][1]}">${a==="raise"&&!open?"Relancer (3-bet)":ACT[a][0]}</span>`;
+const raiseLabel = s => s.open?"Relancer":s.r4?"Relancer (4-bet)":"Relancer (3-bet)";
+const actPill = (a,s) => `<span class="pill ${ACT[a][1]}">${a==="raise"?raiseLabel(s):ACT[a][0]}</span>`;
 
 const PRESETS = {};
 for(const [p,txt] of Object.entries(OPEN)) PRESETS[`${p} ouvre (${fr(rangePct(parseRange(txt).set)*100,0)} %)`]=txt;
+for(const p of ["UTG","UTG+1","UTG+2"]) PRESETS[`${p} ouvre à 9 joueurs (${fr(rangePct(parseRange(OPEN9[p]).set)*100,0)} %)`]=OPEN9[p];
 PRESETS["BB défend contre le bouton (paie ou relance)"]=FACING[0].raise+", "+FACING[0].call;
 PRESETS["3-bet de la BB contre le bouton"]=FACING[0].raise;
 PRESETS["3-bet serré (~4 %)"]="QQ+, AKs, AKo, AQs, A5s, KQs";
@@ -729,11 +771,16 @@ function renderEq(){
   bo.innerHTML=players.slice(1).map((_,i)=>`<option value="${i+1}">Adversaire ${i+1}</option>`).join("");
   if(cur&&+cur<players.length) bo.value=cur;
 }
-function openPicker(k){
-  pickTarget=k;
-  const used=usedCards(k); let h="";
-  for(let s=0;s<4;s++) for(let r=12;r>=0;r--){ const c=r*4+s; h+=`<div class="pc ${used.has(c)?"dead":""}" data-c="${c}">${cardHtml(c)}</div>`; }
-  $("deck").innerHTML=h; $("picker").classList.add("on");
+let pickRank=-1;
+const RANK_FR={12:"As",11:"Roi",10:"Dame",9:"Valet"};
+function openPicker(k){ pickTarget=k; pickRank=-1; drawPicker(); $("picker").classList.add("on"); }
+function drawPicker(){
+  const used=usedCards(pickTarget);
+  $("pkRanks").innerHTML=[12,11,10,9,8,7,6,5,4,3,2,1,0].map(r=>{
+    const full=[0,1,2,3].every(s=>used.has(r*4+s));
+    return `<button data-pr="${r}" class="${r===pickRank?"sel":""}" ${full?"disabled":""}>${RANKS[r]==="T"?"10":RANKS[r]}${RANK_FR[r]?`<small>${RANK_FR[r]}</small>`:""}</button>`;
+  }).join("");
+  $("pkSuits").innerHTML=[0,1,2,3].map(s=>`<button data-ps="${s}" class="s${s}" ${pickRank<0||used.has(pickRank*4+s)?"disabled":""}>${SUITS[s]}</button>`).join("");
 }
 function nextEmpty(k){
   const nx={b0:"b1",b1:"b2",rh0:"rh1",rb0:"rb1",rb1:"rb2",ro0:"ro1"}[k] || (k[0]==="p"&&k.endsWith("_0")?k.replace("_0","_1"):null);
@@ -845,6 +892,38 @@ function finish(st,P,bk,exact){
   $("dist").innerHTML=d+"</table>";
   $("oEq").value=fr(lastHeroEq).replace(",","."); calcOdds();
   analysis(P,bk);
+  heatmap(P,bk);
+}
+
+/* ---- grille : tes chances contre chacune de ses mains ---- */
+let hmData=null;
+function heatmap(P,bk){
+  const card=$("hmCard"), k=P.findIndex((p,i)=>i>0&&p.t!==1);
+  if(P[0].t!==1||k<0){ card.style.display="none"; hmData=null; return; }
+  const hero=P[0].c, dead=new Set([...hero,...bk]);
+  P.forEach(p=>{ if(p.t===1) p.c.forEach(c=>dead.add(c)); });
+  const combos=(P[k].t===2?P[k].combos:ALL_COMBOS).filter(cb=>!dead.has(cb[0])&&!dead.has(cb[1]));
+  const av=[]; for(let c=0;c<52;c++) if(!dead.has(c)) av.push(c);
+  const R=bk.length===5?1:60, res={};
+  let ahead=0;
+  for(const cb of combos){
+    const cl=classOf(cb[0],cb[1]), r=res[cl]||(res[cl]={w:0,n:0,c:0}); r.c++;
+    let w=0;
+    for(let i=0;i<R;i++){
+      const b=bk.slice();
+      while(b.length<5){ const c=av[(rnd()*av.length)|0]; if(c!==cb[0]&&c!==cb[1]&&!b.includes(c)) b.push(c); }
+      const a=evalArr([...hero,...b]), o=evalArr([cb[0],cb[1],...b]); w+=a>o?1:a===o?0.5:0;
+    }
+    r.w+=w; r.n+=R; if(w/R>0.5) ahead++;
+  }
+  hmData=res;
+  drawGrid($("hmGrid"),l=>{
+    const r=res[l]; if(!r) return {style:"opacity:.25"};
+    const e=r.w/r.n; return {style:`background:${e>=0.6?"var(--acc)":e>=0.4?"var(--acc2)":"#c0392b"};color:${e>=0.4?"#111":"#fff"}`};
+  });
+  $("hmTitle").innerHTML=`Contre l'adversaire ${k} : tu es devant contre <b>${pc(ahead/combos.length)}</b> de ses mains possibles.`;
+  $("hmCell").textContent="Touche une case pour voir tes chances contre cette main.";
+  card.style.display="";
 }
 
 /* ---- analyse : main actuelle, outs, range adverse ---- */
@@ -962,9 +1041,8 @@ function quickEquity(hero,bk,opp,N=12000){ // opp : {t:1,c:[2 cartes]} ou {t:2,c
   }
   return w/N;
 }
-const POSITIONS=["UTG","HJ","CO","BTN","SB","BB"];
 const STREETS=["Flop","Turn","River"];
-const newRv=()=>({pos:"BTN",oppPos:"BB",villain:"",hero:[-1,-1],board:[-1,-1,-1,-1,-1],opp:[-1,-1],
+const newRv=()=>({table:tableSize,pos:"BTN",oppPos:"BB",villain:"",hero:[-1,-1],board:[-1,-1,-1,-1,-1],opp:[-1,-1],
   range:FACING[0].raise+", "+FACING[0].call,preSit:"open",preAct:"raise",
   streets:[0,1,2].map(()=>({pot:"",obet:"",act:"check",amt:""}))});
 let rv=store.get("pgto_rv",null);
@@ -983,7 +1061,10 @@ function rvPotEst(s){
 function rvPot(s){ const v=rv.streets[s].pot; return (v!==""&&v!=null&&!isNaN(+v))?+v:rvPotEst(s); }
 function renderRv(){
   const opt=(arr,v)=>arr.map(p=>`<option ${p===v?"selected":""}>${p}</option>`).join("");
-  $("rvPos").innerHTML=opt(POSITIONS,rv.pos); $("rvOppPos").innerHTML=opt(POSITIONS,rv.oppPos);
+  const P=+rv.table===9?POS9:POS6;
+  if(!P.includes(rv.pos)) rv.pos="BTN"; if(!P.includes(rv.oppPos)) rv.oppPos="BB";
+  $("rvTable").value=+rv.table===9?"9":"6";
+  $("rvPos").innerHTML=opt(P,rv.pos); $("rvOppPos").innerHTML=opt(P,rv.oppPos);
   $("rvHero").innerHTML=rv.hero.map((c,i)=>slotHtml(c,"rh"+i)).join("");
   $("rvBoard").innerHTML=rv.board.map((c,i)=>slotHtml(c,"rb"+i)+(i===2||i===3?'<div class="sep"></div>':"")).join("");
   $("rvOpp").innerHTML=rv.opp.map((c,i)=>slotHtml(c,"ro"+i)).join("");
@@ -1009,11 +1090,13 @@ function renderRvStreets(){
   $("rvStreets").innerHTML=h;
 }
 function rvScenario(){
-  if(rv.preSit==="open") return rv.pos==="BB"?null:{s:SCEN.find(x=>x.id==="open_"+rv.pos),approx:false};
-  let s=SCEN.find(x=>x.id===(rv.pos+"_"+rv.oppPos).toLowerCase()), approx=false;
+  const t9=+rv.table===9;
+  if(rv.preSit==="open") return rv.pos==="BB"?null:{s:SCEN.find(x=>x.id===(t9?"open9_":"open_")+rv.pos)||SCEN.find(x=>x.id==="open_"+rv.pos),approx:false};
+  if(rv.preSit==="3bet") return {s:SCEN.find(x=>x.id===(["CO","BTN","SB"].includes(rv.pos)?"vs3b_lp":"vs3b_ep")),approx:false};
+  let s=SCEN.find(x=>!x.open&&x.id===(rv.pos+"_"+rv.oppPos).toLowerCase()), approx=false;
   if(!s){
-    approx=true; const early=["UTG","HJ"].includes(rv.oppPos);
-    const id=rv.pos==="BB"?(early?"bb_utg":rv.oppPos==="CO"?"bb_co":"bb_btn"):rv.pos==="SB"?"sb_btn":(early?"co_utg":"btn_co");
+    approx=true; const early=["UTG","UTG+1","UTG+2","LJ","HJ"].includes(rv.oppPos);
+    const id=rv.pos==="BB"?(early?"bb_utg":rv.oppPos==="CO"?"bb_co":rv.oppPos==="SB"?"bb_sb":"bb_btn"):rv.pos==="SB"?"sb_btn":(early?"co_utg":"btn_co");
     s=SCEN.find(x=>x.id===id);
   }
   return {s,approx};
@@ -1041,7 +1124,7 @@ function rvAnalyze(){
        :["good","OK",act==="raise"?"Relancer depuis la grosse blinde quand les autres ont juste payé, c'est bien avec une bonne main.":"Voir le flop gratuitement : parfait."];
   } else {
     const rec=actionOf(sc.s,cls), a=act==="check"?"call":act;
-    const recTxt=rec==="raise"?(sc.s.open?"relancer":"relancer (3-bet)"):nameAct[rec];
+    const recTxt=rec==="raise"?raiseLabel(sc.s).toLowerCase():nameAct[rec];
     const where=`« ${sc.s.name} »`+(sc.approx?" (le tableau le plus proche de ta situation)":"");
     if(a===rec) pre=["good",`Bonne décision : ${nameAct[a]}`,`${cls} dans la situation ${where} : le GTO dit ${recTxt}.`];
     else if(sc.s.open&&a==="call") pre=["ok","Évite de juste payer (« limp »)",`Quand personne n'a relancé, on relance ou on jette, presque jamais « payer ». Ici le GTO dit : ${recTxt}.`];
@@ -1304,13 +1387,13 @@ function drawPre(){
   const s=SCEN[+$("preScen").value];
   drawGrid($("preGrid"),l=>{ const a=actionOf(s,l); return {cls:a==="raise"?"a-r":a==="call"?"a-c":"a-f"}; });
   const r=rangePct(s.raise), c=rangePct(s.call);
-  $("preLegend").innerHTML=`<span><i style="background:var(--acc)"></i>${s.open?"Relancer":"Relancer (3-bet)"} : ${pc(r)}</span>`
+  $("preLegend").innerHTML=`<span><i style="background:var(--acc)"></i>${raiseLabel(s)} : ${pc(r)}</span>`
     +(s.call.size?`<span><i style="background:var(--acc2)"></i>Suivre : ${pc(c)}</span>`:"")
     +`<span><i style="background:#4a1c22"></i>Jeter : ${pc(1-r-c)}</span>`;
   $("preCell").textContent="";
 }
 function preHandAnswer(cls){
-  return `<h3>${cls}</h3><table>${SCEN.map(s=>`<tr><td>${s.name}</td><td class="r">${actPill(actionOf(s,cls),s.open)}</td></tr>`).join("")}</table>`;
+  return `<h3>${cls} <span class="help">(table de ${tableSize} joueurs)</span></h3><table>${scenList().map(s=>`<tr><td>${s.name}</td><td class="r">${actPill(actionOf(s,cls),s)}</td></tr>`).join("")}</table>`;
 }
 
 /* ===================================================================
@@ -1447,7 +1530,6 @@ function calcIcm(){
 =================================================================== */
 let trQ=null;
 let trScore=store.get("pgto_tr",{});
-const OPEN_SCEN=SCEN.filter(s=>s.open), FACE_SCEN=SCEN.filter(s=>!s.open);
 function randClass(){ const a=(rnd()*52)|0; let b; do b=(rnd()*52)|0; while(b===a); return classOf(a,b); }
 function classFrom(set){ const arr=[]; set.forEach(c=>{ for(let i=0;i<nCombos(c);i++) arr.push(c); }); return arr[(rnd()*arr.length)|0]; }
 function cardsOf(cls){ const cb=COMBOS[GIDX[cls]]; return cb[(rnd()*cb.length)|0]; }
@@ -1493,14 +1575,15 @@ const cardRow = (cs,cls="") => `<div class="bigcards ${cls}">${cs.map(c=>`<div c
 function newQ(){
   const m=$("trMode").value; $("trFb").innerHTML="";
   if(m==="open"||m==="face"){
-    const s=m==="open"?OPEN_SCEN[(rnd()*OPEN_SCEN.length)|0]:FACE_SCEN[(rnd()*FACE_SCEN.length)|0];
+    const list=scenList().filter(x=>m==="open"?x.open:!x.open);
+    const s=list[(rnd()*list.length)|0];
     const pool=m==="open"?SCEN.find(x=>x.id==="open_BTN").raise:new Set([...s.raise,...s.call]);
     const cls=rnd()<0.55?classFrom(pool):randClass(), cards=cardsOf(cls);
     trQ={m,s,cls,ans:actionOf(s,cls)};
     $("trQ").innerHTML=`<p class="trq"><b>${s.name}</b>${m==="open"?" — personne n'a relancé avant toi.":"."}</p>
       <div class="bigcards">${cards.map(c=>`<div class="slot f">${cardHtml(c)}</div>`).join("")}</div><p class="help">Ta main : ${cls}</p>`;
     const opts=m==="open"?["raise","fold"]:(s.call.size?["raise","call","fold"]:["raise","fold"]);
-    $("trBtns").innerHTML=opts.map(a=>`<button class="btn ${a==="fold"?"sec":""}" data-ans="${a}">${a==="raise"&&!s.open?"Relancer (3-bet)":ACT[a][0]}</button>`).join("");
+    $("trBtns").innerHTML=opts.map(a=>`<button class="btn ${a==="fold"?"sec":""}" data-ans="${a}">${a==="raise"?raiseLabel(s):ACT[a][0]}</button>`).join("");
   } else if(m==="odds"){
     let pot,bet,eq,need;
     do{
@@ -1556,7 +1639,7 @@ function answerQ(a){
   if(trQ.why) why=trQ.why;
   else if(trQ.m==="odds") why=`Il fallait au moins <b>${fr(trQ.need)} %</b> de chances (${trQ.bet} ÷ (${trQ.pot} + 2 × ${trQ.bet})). Tu en as ${trQ.eq} % → <b>${trQ.ans==="call"?"payer":"se coucher"}</b>.`;
   else { const s=trQ.s;
-    why=`La bonne réponse : ${actPill(trQ.ans,s.open)}<br><span class="help">Dans cette situation on relance ${pc(rangePct(s.raise))} des mains${s.call.size?` et on suit ${pc(rangePct(s.call))}`:""}.</span>`; }
+    why=`La bonne réponse : ${actPill(trQ.ans,s)}<br><span class="help">Dans cette situation on relance ${pc(rangePct(s.raise))} des mains${s.call.size?` et on suit ${pc(rangePct(s.call))}`:""}.</span>`; }
   $("trFb").innerHTML=`<div class="verdict ${ok?"ok":"no"}">${ok?"✅ Bonne réponse !":"❌ Raté."}<br><span style="font-weight:400">${why}</span></div>
     <div class="row"><button class="btn" id="trNext">Question suivante →</button></div>`;
   showTrScore();
@@ -1606,22 +1689,37 @@ function renderSessions(){
 =================================================================== */
 function init(){
   // onglets
+  // 4 grands boutons en bas, et leurs onglets en haut
+  const GROUPS={
+    jouer:[["eq","🎯 Chances"],["pre","🃏 Préflop"],["odds","🧮 Cotes"]],
+    tournoi:[["pf","⚡ Tapis ou fold"],["icm","🏆 ICM"]],
+    analyser:[["rev","🔍 Revoir une main"],["vil","👥 Joueurs"],["ses","📒 Sessions"]],
+    apprendre:[["tr","🎓 Cours et exercices"]]
+  };
+  const groupOf=t=>Object.keys(GROUPS).find(g=>GROUPS[g].some(x=>x[0]===t))||"jouer";
+  const lastTab=store.get("pgto_lasttab",{});
   const showTab=t=>{
-    document.querySelectorAll("#nav button").forEach(b=>b.classList.toggle("on",b.dataset.t===t));
+    if(!document.getElementById("t-"+t)) t="eq";
+    const g=groupOf(t); lastTab[g]=t; store.set("pgto_lasttab",lastTab);
+    $("nav").innerHTML=GROUPS[g].length>1?GROUPS[g].map(([id,name])=>`<button data-t="${id}" class="${id===t?"on":""}">${name}</button>`).join(""):"";
+    document.querySelectorAll("#mainnav button").forEach(b=>b.classList.toggle("on",b.dataset.g===g));
     document.querySelectorAll(".tab").forEach(s=>s.classList.toggle("on",s.id==="t-"+t));
     store.set("pgto_tab",t);
     if(t==="tr"&&!trQ) newQ();
   };
-  document.querySelectorAll("#nav button").forEach(b=>b.onclick=()=>{ showTab(b.dataset.t); window.scrollTo(0,0); });
+  $("nav").addEventListener("click",e=>{ const b=e.target.closest("[data-t]"); if(b){ showTab(b.dataset.t); window.scrollTo(0,0); } });
+  document.querySelectorAll("#mainnav button").forEach(b=>b.onclick=()=>{ const g=b.dataset.g; showTab(lastTab[g]||GROUPS[g][0][0]); window.scrollTo(0,0); });
   showTab(store.get("pgto_tab","eq"));
 
   document.addEventListener("click",e=>{
     const t=e.target;
     const slot=t.closest(".slot[data-k]");
     if(slot){ const k=slot.dataset.k; if(getCard(k)>=0){ setCard(k,-1); renderCards(k); } else openPicker(k); return; }
-    const card=t.closest(".pc");
-    if(card&&!card.classList.contains("dead")){
-      setCard(pickTarget,+card.dataset.c); $("picker").classList.remove("on"); renderCards(pickTarget);
+    const pr=t.closest("[data-pr]");
+    if(pr&&!pr.disabled){ pickRank=+pr.dataset.pr; drawPicker(); return; }
+    const ps=t.closest("[data-ps]");
+    if(ps&&!ps.disabled&&pickRank>=0){
+      setCard(pickTarget,pickRank*4+(+ps.dataset.ps)); $("picker").classList.remove("on"); renderCards(pickTarget);
       const nx=nextEmpty(pickTarget); if(nx) openPicker(nx); return;
     }
     if(t.classList.contains("modal")||t.dataset.close){ (t.dataset.close?$(t.dataset.close):t).classList.remove("on"); return; }
@@ -1640,9 +1738,12 @@ function init(){
     if(t.dataset.icmdel!==undefined){ icmPlayers.splice(+t.dataset.icmdel,1); renderIcmRows(); calcIcm(); }
     if(t.dataset.sdel!==undefined && confirm("Supprimer cette partie ?")){ sessions=sessions.filter(s=>s.id!==+t.dataset.sdel); renderSessions(); }
     const cell=t.closest("#preGrid [data-l]");
-    if(cell){ const s=SCEN[+$("preScen").value]; $("preCell").innerHTML=`${cell.dataset.l} : ${actPill(actionOf(s,cell.dataset.l),s.open)}`; }
+    if(cell){ const s=SCEN[+$("preScen").value]; $("preCell").innerHTML=`${cell.dataset.l} : ${actPill(actionOf(s,cell.dataset.l),s)}`; }
     const pcell=t.closest("#pfGridP [data-l], #pfGridC [data-l]");
     if(pcell) $("pfCell").innerHTML=pfHandTxt(pcell.dataset.l);
+    const hcell=t.closest("#hmGrid [data-l]");
+    if(hcell&&hmData){ const l=hcell.dataset.l, r=hmData[l];
+      $("hmCell").innerHTML=r?`Contre <b>${l}</b> : tu gagnes <b>${pc(r.w/r.n)}</b> du temps (${r.c} combinaison${r.c>1?"s":""} possible${r.c>1?"s":""}).`:`<b>${l}</b> : il ne joue pas cette main (ou elle est impossible avec les cartes posées).`; }
   });
   document.addEventListener("change",e=>{
     const t=e.target;
@@ -1669,7 +1770,7 @@ function init(){
   // chances
   $("addOpp").onclick=()=>{ players.push(newPlayer("random")); saveEq(); renderEq(); };
   $("reset").onclick=()=>{ players=[newPlayer("cards"),newPlayer("random")]; board=[-1,-1,-1,-1,-1]; saveEq(); renderEq();
-    $("out").innerHTML='<p class="help">Choisis tes cartes puis clique sur « Calculer ».</p>'; $("dist").innerHTML='<p class="help">—</p>'; analysis([], []); };
+    $("out").innerHTML='<p class="help">Choisis tes cartes puis clique sur « Calculer ».</p>'; $("dist").innerHTML='<p class="help">—</p>'; analysis([], []); $("hmCard").style.display="none"; $("blOut").innerHTML=""; };
   $("run").onclick=runSim;
   $("blStyle").innerHTML=blStyleOpts();
   $("blRun").onclick=analyzeBluffs;
@@ -1694,7 +1795,10 @@ function init(){
   $("useEq").onclick=()=>{ if(lastHeroEq!=null){ $("oEq").value=lastHeroEq.toFixed(1); calcOdds(); } else alert("Fais d'abord un calcul dans l'onglet « Chances »."); };
 
   // préflop
-  $("preScen").innerHTML=SCEN.map((s,i)=>`<option value="${i}">${s.name}</option>`).join("");
+  const fillPreScen=()=>{ $("preScen").innerHTML=scenList().map(s=>`<option value="${SCEN.indexOf(s)}">${s.name}</option>`).join(""); };
+  fillPreScen();
+  $("preTable").value=String(tableSize);
+  $("preTable").onchange=e=>{ tableSize=+e.target.value; store.set("pgto_table",tableSize); fillPreScen(); drawPre(); $("preAns").innerHTML=""; };
   $("preScen").onchange=drawPre;
   const checkHand=(inp,cb)=>{ const {set,bad}=parseRange($(inp).value); if(bad.length||!set.size) return '<p class="err">Écris une main comme AJo, 76s, KQ ou 99.</p>'; return [...set].map(cb).join(""); };
   $("preCheck").onclick=()=>$("preAns").innerHTML=checkHand("preHand",preHandAnswer);
@@ -1758,6 +1862,7 @@ function init(){
   $("rvOppPos").onchange=e=>{ rv.oppPos=e.target.value; saveRv(); };
   $("rvRange").oninput=e=>{ rv.range=e.target.value; saveRv(); $("rvRinfo").innerHTML=rangeInfo(rv.range); };
   $("rvPreSit").onchange=e=>{ rv.preSit=e.target.value; saveRv(); };
+  $("rvTable").onchange=e=>{ rv.table=+e.target.value; saveRv(); renderRv(); };
   $("rvPreAct").onchange=e=>{ rv.preAct=e.target.value; saveRv(); renderRvStreets(); };
   $("rvVillain").onchange=e=>{ rv.villain=e.target.value; saveRv(); $("rvVStyle").style.display=rv.villain?"":"none"; };
   $("rvUseStyle").onclick=()=>{ const v=villains.find(x=>String(x.id)===String(rv.villain)); if(v){ rv.range=STYLE_RANGE[v.loose]; saveRv(); renderRv(); } };

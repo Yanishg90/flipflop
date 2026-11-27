@@ -80,7 +80,7 @@ td.r b{white-space:nowrap}
 .verdict.no{background:#3d1717;border:1px solid var(--bad)}
 .note{font-size:12.5px;color:var(--mute);margin-top:12px}
 .pill{display:inline-block;padding:2px 9px;border-radius:10px;font-weight:700;font-size:13px}
-.pr{background:var(--acc);color:#04140a}.pk{background:var(--acc2);color:#2a2000}.pf{background:#8a2a33;color:#fff}
+.pr{background:var(--acc);color:#04140a}.pk{background:var(--acc2);color:#2a2000}.pf{background:#8a2a33;color:#fff}.pt{background:#9b59ff;color:#fff}
 .legend{display:flex;gap:12px;flex-wrap:wrap;font-size:13px;margin:8px 0}
 .legend i{display:inline-block;width:14px;height:14px;border-radius:3px;vertical-align:-2px;margin-right:4px}
 /* modales */
@@ -104,6 +104,7 @@ td.r b{white-space:nowrap}
 .rg div.on,.rg div.a-r{background:var(--acc);color:#04140a}
 .rg div.a-c{background:var(--acc2);color:#2a2000}
 .rg div.a-f{background:#4a1c22;color:#e9c9cc}
+.rg div.a-s{background:#9b59ff;color:#fff}
 .rg div.sel{outline:2px solid var(--acc2)}
 .rg.ro{touch-action:auto}
 #gm .box{width:min(600px,100%)}
@@ -386,11 +387,12 @@ details ul{padding-left:20px;margin:6px 0}
 
 <!-- ================= PREFLOP ================= -->
 <section id="t-pre" class="tab">
- <p class="intro">Quelles mains jouer avant le flop, selon ta place à la table. Choisis 6 joueurs (en ligne) ou 9 joueurs (casino, club). Tapis de 100 grosses blindes. Ranges proches de celles des solveurs (approchées).</p>
+ <p class="intro">Quelles mains jouer avant le flop, selon ta place à la table. Choisis le nombre de joueurs et ton tapis : 100 grosses blindes (cash game), ou environ 40 et 20 grosses blindes (tournoi). Ranges proches de celles des solveurs (approchées). En dessous de 15 grosses blindes, utilise « Tapis ou fold ».</p>
  <div class="grid2">
   <div class="card">
    <h2>Tableau des mains <button class="q" data-q="3bet" aria-label="Explication">?</button></h2>
    <div class="row"><select id="preTable" style="flex:1;max-width:100%"><option value="6">Table de 6 joueurs (en ligne)</option><option value="9">Table de 9 joueurs (casino, club)</option></select></div>
+   <div class="row"><select id="preDepth" style="flex:1;max-width:100%"></select></div>
    <div class="row"><select id="preScen" style="flex:1;max-width:100%"></select></div>
    <div class="legend" id="preLegend"></div>
    <div class="rg ro" id="preGrid"></div>
@@ -786,13 +788,59 @@ const OPEN9 = {
 const POS_NAMES={"UTG":"UTG (premier à parler)","UTG+1":"UTG+1","UTG+2":"UTG+2","LJ":"le LJ","HJ":"le HJ","CO":"le CO (juste avant le bouton)","BTN":"le bouton","SB":"la petite blinde"};
 const POS6=["UTG","HJ","CO","BTN","SB","BB"], POS9=["UTG","UTG+1","UTG+2","LJ","HJ","CO","BTN","SB","BB"];
 let tableSize=store.get("pgto_table",6)===9?9:6;
+/* ---- tournoi : tapis d'environ 40 et 20 grosses blindes (avec antes, approchés) ---- */
+const OPEN40={
+  UTG:"33+, A2s+, K8s+, Q9s+, J9s+, T9s, 98s, 87s, 76s, ATo+, KJo+, QJo",
+  HJ:"22+, A2s+, K6s+, Q8s+, J8s+, T8s+, 97s+, 86s+, 76s, 65s, A9o+, KTo+, QTo+, JTo",
+  CO:"22+, A2s+, K3s+, Q6s+, J7s+, T7s+, 96s+, 86s+, 75s+, 65s, 54s, A7o+, A5o, K9o+, Q9o+, J9o+, T9o",
+  BTN:OPEN.BTN,
+  SB:"22+, A2s+, K2s+, Q5s+, J7s+, T7s+, 97s+, 86s+, 76s, 65s, A2o+, K7o+, Q9o+, J9o+, T9o"
+};
+const OPEN9_40={"UTG":"66+, A9s+, A5s, KTs+, QTs+, JTs, ATo+, KQo","UTG+1":"55+, A8s+, A5s-A4s, K9s+, QTs+, JTs, T9s, ATo+, KJo+",
+  "UTG+2":"44+, A7s+, A5s-A3s, K9s+, Q9s+, J9s+, T9s, 98s, ATo+, KJo+","LJ":OPEN40.UTG,"HJ":OPEN40.HJ,"CO":OPEN40.CO,"BTN":OPEN40.BTN,"SB":OPEN40.SB};
+// à 20 bb : r = petite relance, s = tapis direct
+const OPEN20={
+  UTG:{r:"88+, ATs+, KTs+, QTs+, JTs, AJo+, KQo",s:"55-77, A5s-A4s"},
+  HJ:{r:"77+, A8s+, K9s+, Q9s+, J9s+, T9s, ATo+, KJo+",s:"22-66, A7s-A2s, KTo, QJo"},
+  CO:{r:"66+, A2s+, K7s+, Q8s+, J8s+, T8s+, 98s, 87s, A8o+, KTo+, QTo+, JTo",s:"22-55, A7o-A5o, K9o"},
+  BTN:{r:OPEN.BTN,s:""},
+  SB:{r:"",s:"22+, A2s+, K2s+, Q4s+, J6s+, T7s+, 97s+, 86s+, 76s, A2o+, K5o+, Q8o+, J9o+, T9o"}
+};
+const OPEN9_20={"UTG":{r:"99+, AJs+, KQs, AQo+",s:"66-88, ATs"},"UTG+1":{r:"88+, ATs+, KJs+, AJo+, KQo",s:"55-77, A9s"},
+  "UTG+2":{r:"77+, ATs+, KTs+, QJs, AJo+, KQo",s:"44-66, A9s-A8s"},"LJ":OPEN20.UTG,"HJ":OPEN20.HJ,"CO":OPEN20.CO,"BTN":OPEN20.BTN,"SB":OPEN20.SB};
+// à 20 bb face à une relance : on fait tapis (sur-relance tapis), on suit, ou on jette
+const FACING20={
+  bb_btn:{s:"66+, A8s+, A5s-A4s, KJs+, ATo+, KQo",c:"55-22, A7s-A6s, A3s-A2s, KTs-K2s, QJs-Q5s, JTs-J7s, T9s-T7s, 98s-97s, 87s-86s, 76s-75s, 65s, 54s, A9o-A2o, KJo-K8o, QJo-Q9o, JTo-J9o, T9o"},
+  bb_co:{s:"77+, A9s+, A5s, KQs, AJo+",c:"66-22, A8s-A6s, A4s-A2s, KJs-K7s, QJs-Q8s, JTs-J8s, T9s-T8s, 98s, 87s, ATo-A8o, KQo-KTo, QJo-QTo, JTo"},
+  bb_utg:{s:"99+, AJs+, AQo+",c:"88-22, ATs-A2s, KQs-K9s, QJs-Q9s, JTs-J9s, T9s, AJo, KQo"},
+  sb_btn:{s:"66+, A8s+, A5s-A2s, KTs+, QJs, ATo+, KJo+",c:""},
+  btn_co:{s:"77+, A9s+, KJs+, AJo+, KQo",c:"66-22, A8s-A6s, KTs, QJs-QTs, JTs, T9s"},
+  co_utg:{s:"99+, AJs+, AQo+",c:"88-66, ATs, KQs"},
+  bb_sb:{s:"55+, A7s+, K9s+, QTs+, ATo+, KJo+",c:"44-22, A6s-A2s, K8s-K2s, Q9s-Q2s, J5s+, T6s+, 96s+, 85s+, 75s+, 64s+, 54s, A9o-A2o, KTo-K5o, Q8o+, J8o+, T8o+, 98o"},
+  vs3b_lp:{s:"",c:"88+, ATs+, KQs, AJo+",name:"Tu as ouvert au bouton ou au CO, et on te fait tapis"},
+  vs3b_ep:{s:"",c:"TT+, AQs+, AKo",name:"Tu as ouvert en début de table, et on te fait tapis"}
+};
+const DEPTHS=[[100,"100 grosses blindes (cash game, début de tournoi)"],[40,"Environ 40 grosses blindes (milieu de tournoi)"],[20,"Environ 20 grosses blindes (fin de tournoi)"]];
+let preDepth=[100,40,20].includes(store.get("pgto_depth",100))?store.get("pgto_depth",100):100;
+const sfx=d=>d&&d!==100?"@"+d:"";
+const scen=(id,d)=>SCEN.find(x=>x.id===id+sfx(d))||SCEN.find(x=>x.id===id);
+const depthOfBB=bb=>bb>=60?100:bb>=30?40:bb>=15?20:0;
 const SCEN = [];
-for(const [p,txt] of Object.entries(OPEN)) SCEN.push({id:"open_"+p, table:6, open:true, pos:p, name:"Ouvrir depuis "+POS_NAMES[p], short:"Ouvrir "+p, raise:parseRange(txt).set, call:new Set()});
-for(const [p,txt] of Object.entries(OPEN9)) SCEN.push({id:"open9_"+p, table:9, open:true, pos:p, name:"Ouvrir depuis "+POS_NAMES[p], short:"Ouvrir "+p, raise:parseRange(txt).set, call:new Set()});
-for(const f of FACING) SCEN.push({id:f.id, table:0, open:false, r4:!!f.r4, name:f.name, short:f.short, raise:parseRange(f.raise).set, call:parseRange(f.call).set});
-const scenList = () => SCEN.filter(s=>!s.table||s.table===tableSize);
-const actionOf = (s,cls) => s.raise.has(cls)?"raise":(s.call.has(cls)?"call":"fold");
-const ACT = {raise:["Relancer","pr"], call:["Suivre","pk"], fold:["Jeter","pf"]};
+for(const d of [100,40,20]){
+  const o6=d===100?OPEN:d===40?OPEN40:OPEN20, o9=d===100?OPEN9:d===40?OPEN9_40:OPEN9_20;
+  for(const [tab,o,pre] of [[6,o6,"open_"],[9,o9,"open9_"]]) for(const [p,v] of Object.entries(o)){
+    const r=typeof v==="string"?v:v.r, s=typeof v==="string"?"":v.s;
+    SCEN.push({id:pre+p+sfx(d), table:tab, depth:d, open:true, pos:p, name:"Ouvrir depuis "+POS_NAMES[p], short:"Ouvrir "+p, raise:parseRange(r).set, call:new Set(), shove:parseRange(s).set});
+  }
+  for(const f of FACING){
+    const g=d===20?FACING20[f.id]:null;
+    SCEN.push({id:f.id+sfx(d), table:0, depth:d, open:false, r4:!!f.r4, name:(g&&g.name)||f.name, short:f.short,
+      raise:g?new Set():parseRange(f.raise).set, call:parseRange(g?g.c:f.call).set, shove:g?parseRange(g.s).set:new Set()});
+  }
+}
+const scenList = () => SCEN.filter(s=>(!s.table||s.table===tableSize)&&s.depth===preDepth);
+const actionOf = (s,cls) => s.shove&&s.shove.has(cls)?"shove":s.raise.has(cls)?"raise":(s.call.has(cls)?"call":"fold");
+const ACT = {raise:["Relancer","pr"], call:["Suivre","pk"], fold:["Jeter","pf"], shove:["Tapis !","pt"]};
 const raiseLabel = s => s.open?"Relancer":s.r4?"Relancer (4-bet)":"Relancer (3-bet)";
 const actPill = (a,s) => `<span class="pill ${ACT[a][1]}">${a==="raise"?raiseLabel(s):ACT[a][0]}</span>`;
 
@@ -2155,15 +2203,16 @@ function calcSpr(){
 =================================================================== */
 function drawPre(){
   const s=SCEN[+$("preScen").value];
-  drawGrid($("preGrid"),l=>{ const a=actionOf(s,l); return {cls:a==="raise"?"a-r":a==="call"?"a-c":"a-f"}; });
-  const r=rangePct(s.raise), c=rangePct(s.call);
-  $("preLegend").innerHTML=`<span><i style="background:var(--acc)"></i>${raiseLabel(s)} : ${pc(r)}</span>`
+  drawGrid($("preGrid"),l=>{ const a=actionOf(s,l); return {cls:a==="shove"?"a-s":a==="raise"?"a-r":a==="call"?"a-c":"a-f"}; });
+  const sh=rangePct(s.shove||new Set()), r=rangePct(new Set([...s.raise].filter(x=>!(s.shove&&s.shove.has(x))))), c=rangePct(s.call);
+  $("preLegend").innerHTML=(s.raise.size?`<span><i style="background:var(--acc)"></i>${raiseLabel(s)} : ${pc(r)}</span>`:"")
+    +(sh?`<span><i style="background:#9b59ff"></i>Tapis : ${pc(sh)}</span>`:"")
     +(s.call.size?`<span><i style="background:var(--acc2)"></i>Suivre : ${pc(c)}</span>`:"")
-    +`<span><i style="background:#4a1c22"></i>Jeter : ${pc(1-r-c)}</span>`;
+    +`<span><i style="background:#4a1c22"></i>Jeter : ${pc(Math.max(0,1-r-c-sh))}</span>`;
   $("preCell").textContent="";
 }
 function preHandAnswer(cls){
-  return `<h3>${cls} <span class="help">(table de ${tableSize} joueurs)</span></h3><table>${scenList().map(s=>`<tr><td>${s.name}</td><td class="r">${actPill(actionOf(s,cls),s)}</td></tr>`).join("")}</table>`;
+  return `<h3>${cls} <span class="help">(table de ${tableSize} joueurs, ${preDepth===100?"100":"environ "+preDepth} grosses blindes)</span></h3><table>${scenList().map(s=>`<tr><td>${s.name}</td><td class="r">${actPill(actionOf(s,cls),s)}</td></tr>`).join("")}</table>`;
 }
 
 /* ===================================================================
@@ -2426,7 +2475,7 @@ function newQ(){
     trQ={m,s,cls,ans:actionOf(s,cls)};
     $("trQ").innerHTML=`<p class="trq"><b>${s.name}</b>${m==="open"?" — personne n'a relancé avant toi.":"."}</p>
       <div class="bigcards">${cards.map(c=>`<div class="slot f">${cardHtml(c)}</div>`).join("")}</div><p class="help">Ta main : ${cls}</p>`;
-    const opts=m==="open"?["raise","fold"]:(s.call.size?["raise","call","fold"]:["raise","fold"]);
+    const opts=["raise","shove","call","fold"].filter(a=>a==="fold"||(a==="raise"&&s.raise.size)||(a==="call"&&s.call.size)||(a==="shove"&&s.shove&&s.shove.size));
     $("trBtns").innerHTML=opts.map(a=>`<button class="btn ${a==="fold"?"sec":""}" data-ans="${a}">${a==="raise"?raiseLabel(s):ACT[a][0]}</button>`).join("");
   } else if(m==="odds"){
     let pot,bet,eq,need;
@@ -2680,6 +2729,8 @@ function init(){
   fillPreScen();
   $("preTable").value=String(tableSize);
   $("preTable").onchange=e=>{ tableSize=+e.target.value; store.set("pgto_table",tableSize); fillPreScen(); drawPre(); $("preAns").innerHTML=""; };
+  $("preDepth").innerHTML=DEPTHS.map(([d,t])=>`<option value="${d}" ${d===preDepth?"selected":""}>${t}</option>`).join("");
+  $("preDepth").onchange=e=>{ preDepth=+e.target.value; store.set("pgto_depth",preDepth); fillPreScen(); drawPre(); $("preAns").innerHTML=""; };
   $("preScen").onchange=drawPre;
   const checkHand=(inp,cb)=>{ const {set,bad}=parseRange($(inp).value); if(bad.length||!set.size) return '<p class="err">Écris une main comme AJo, 76s, KQ ou 99.</p>'; return [...set].map(cb).join(""); };
   $("preCheck").onclick=()=>$("preAns").innerHTML=checkHand("preHand",preHandAnswer);

@@ -72,7 +72,7 @@ td.r,th.r{text-align:right}
 .verdict.no{background:#3d1717;border:1px solid var(--bad)}
 .note{font-size:12.5px;color:var(--mute);margin-top:12px}
 .pill{display:inline-block;padding:2px 9px;border-radius:10px;font-weight:700;font-size:13px}
-.pr{background:var(--acc);color:#04140a}.pk{background:var(--call);color:#fff}.pf{background:#3a4a40;color:#cfe0d4}
+.pr{background:var(--acc);color:#04140a}.pk{background:var(--acc2);color:#2a2000}.pf{background:#8a2a33;color:#fff}
 .legend{display:flex;gap:12px;flex-wrap:wrap;font-size:13px;margin:8px 0}
 .legend i{display:inline-block;width:14px;height:14px;border-radius:3px;vertical-align:-2px;margin-right:4px}
 /* modales */
@@ -89,7 +89,8 @@ td.r,th.r{text-align:right}
 .rg div{aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:clamp(8px,2.3vw,12px);border-radius:3px;background:#24382c;color:#cfe0d4;cursor:pointer;font-weight:600}
 .rg div.p{background:#3a3f63}.rg div.s{background:#2e4a3a}
 .rg div.on,.rg div.a-r{background:var(--acc);color:#04140a}
-.rg div.a-c{background:var(--call);color:#fff}
+.rg div.a-c{background:var(--acc2);color:#2a2000}
+.rg div.a-f{background:#4a1c22;color:#e9c9cc}
 .rg div.sel{outline:2px solid var(--acc2)}
 .rg.ro{touch-action:auto}
 #gm .box{width:min(600px,100%)}
@@ -118,12 +119,12 @@ details ul{padding-left:20px;margin:6px 0}
   </div>
   <nav id="nav">
     <button data-t="eq">🎯 Chances</button>
-    <button data-t="rev">🔍 Revoir une main</button>
-    <button data-t="vil">👥 Joueurs</button>
-    <button data-t="odds">🧮 Cotes</button>
     <button data-t="pre">🃏 Préflop</button>
+    <button data-t="odds">🧮 Cotes</button>
     <button data-t="pf">⚡ Tapis ou fold</button>
     <button data-t="icm">🏆 ICM tournoi</button>
+    <button data-t="rev">🔍 Revoir une main</button>
+    <button data-t="vil">👥 Joueurs</button>
     <button data-t="tr">🎓 Apprendre</button>
     <button data-t="ses">📒 Mes sessions</button>
   </nav>
@@ -469,9 +470,9 @@ details ul{padding-left:20px;margin:6px 0}
    <div class="f"><label>Argent récupéré (€)</label><input type="number" id="sOut" min="0" step="0.01"></div>
    <div class="f"><label>Durée (heures)</label><input type="number" id="sH" min="0" step="0.25" value="1"></div>
    <div class="row"><button class="btn" id="sAdd">Enregistrer</button></div>
-   <h3>Sauvegarde</h3>
-   <p class="help">Pour passer tes parties de l'ordi au téléphone : « Exporter » sur l'un, puis « Importer » le fichier sur l'autre.</p>
-   <div class="row"><button class="btn sec small" id="sExp">Exporter</button><button class="btn sec small" id="sImpB">Importer</button><input type="file" id="sImp" accept=".json,application/json" hidden></div>
+   <h3>💾 Sauvegarde de toutes mes données</h3>
+   <p class="help">Un seul fichier avec tout : tes parties, tes joueurs notés, tes mains revues et tes scores. Fais-le avant de réinstaller l'appli, ou pour passer de l'ordi au téléphone : « Sauvegarder » sur l'un, puis « Récupérer » le fichier sur l'autre. Rien n'est effacé : ce qui existe déjà est gardé.</p>
+   <div class="row"><button class="btn sec small" id="sExp">Sauvegarder</button><button class="btn sec small" id="sImpB">Récupérer une sauvegarde</button><input type="file" id="sImp" accept=".json,application/json" hidden></div>
   </div>
   <div class="col">
    <div class="card"><h2>Bilan</h2><div class="kpi" id="sKpi"></div><div id="sChart" style="margin-top:12px"></div></div>
@@ -834,13 +835,13 @@ function finish(st,P,bk,exact){
     <div class="res-line"><span>Tu perds</span><b>${pc(1-(st.only[0]+st.ties[0])/v)}</b></div>
     <h3>Chances de chaque joueur</h3>`;
   for(let k=0;k<n;k++){ const e=st.wins[k]/v;
-    h+=`<div style="margin:6px 0">${lab(k)} <b style="float:right">${pc(e)}</b><div class="bar"><i style="width:${e*100}%;${k?"background:var(--acc2)":""}"></i></div></div>`; }
+    h+=`<div style="margin:6px 0">${lab(k)} <b style="float:right">${pc(e)}</b><div class="bar"><i style="width:${e*100}%;${k?"background:var(--red)":""}"></i></div></div>`; }
   const fair=1/n;
   h+=`<p class="note">À ${n} joueurs, une main « moyenne » a ${pc(fair)}. ${eq>fair?"Tu es au-dessus de la moyenne ✅":"Tu es en dessous de la moyenne ⚠️"}</p>`;
   out.innerHTML=h;
   let d='<table>';
   for(let c=8;c>=0;c--){ const x=st.cat[c]/v; if(x===0) continue;
-    d+=`<tr><td>${CAT[c]}<div class="bar"><i style="width:${Math.min(100,x*100)}%"></i></div></td><td class="r">${x<0.001?"< 0,1 %":pc(x)}</td></tr>`; }
+    d+=`<tr><td>${CAT[c]}<div class="bar"><i style="width:${Math.min(100,x*100)}%;background:${c>=4?"var(--acc)":c>=2?"var(--acc2)":"var(--red)"}"></i></div></td><td class="r">${x<0.001?"< 0,1 %":pc(x)}</td></tr>`; }
   $("dist").innerHTML=d+"</table>";
   $("oEq").value=fr(lastHeroEq).replace(",","."); calcOdds();
   analysis(P,bk);
@@ -1230,7 +1231,7 @@ function analyzeBluffs(){
   if(gto) P=g!==null?Math.min(m,g):null;
   else { const wb=cnt.draw*Math.min(1,bF*1.4)+cnt.air*bF*0.8, wv=V*vF; P=(wb+wv)?wb/(wb+wv):0; }
   let h=`<h3>Ses mains possibles sur ce tableau (${N} combinaisons)</h3><table>`;
-  for(const t of ["value","medium","draw","air"]) h+=`<tr><td>${BL_TYPES[t][0]}<br><span class="help">${BL_TYPES[t][1]}</span><div class="bar"><i style="width:${cnt[t]/N*100}%;${t==="draw"||t==="air"?"background:var(--acc2)":""}"></i></div></td><td class="r"><b>${pc(cnt[t]/N)}</b></td></tr>`;
+  for(const t of ["value","medium","draw","air"]) h+=`<tr><td>${BL_TYPES[t][0]}<br><span class="help">${BL_TYPES[t][1]}</span><div class="bar"><i style="width:${cnt[t]/N*100}%;background:${{value:"var(--acc)",medium:"var(--acc2)",draw:"#f08a3c",air:"var(--red)"}[t]}"></i></div></td><td class="r"><b>${pc(cnt[t]/N)}</b></td></tr>`;
   h+=`</table><p>Bluffs possibles : <b>${pc(B/N)}</b> de ses mains. ${V?`Pour 1 main forte, il a <b>${fr(B/V,1)}</b> main${B/V>=2?"s":""} de bluff possible${B/V>=2?"s":""}.`:"Il n'a presque aucune main forte ici."}</p>`;
   if(V) h+=`<p class="help">Ses mains fortes, par exemple : ${top(ex.value)}</p>`;
   if(cnt.draw) h+=`<p class="help">Ses tirages, par exemple : ${top(ex.draw)}</p>`;
@@ -1301,11 +1302,11 @@ function calcSpr(){
 =================================================================== */
 function drawPre(){
   const s=SCEN[+$("preScen").value];
-  drawGrid($("preGrid"),l=>{ const a=actionOf(s,l); return {cls:a==="raise"?"a-r":a==="call"?"a-c":""}; });
+  drawGrid($("preGrid"),l=>{ const a=actionOf(s,l); return {cls:a==="raise"?"a-r":a==="call"?"a-c":"a-f"}; });
   const r=rangePct(s.raise), c=rangePct(s.call);
   $("preLegend").innerHTML=`<span><i style="background:var(--acc)"></i>${s.open?"Relancer":"Relancer (3-bet)"} : ${pc(r)}</span>`
-    +(s.call.size?`<span><i style="background:var(--call)"></i>Suivre : ${pc(c)}</span>`:"")
-    +`<span><i style="background:#24382c"></i>Jeter : ${pc(1-r-c)}</span>`;
+    +(s.call.size?`<span><i style="background:var(--acc2)"></i>Suivre : ${pc(c)}</span>`:"")
+    +`<span><i style="background:#4a1c22"></i>Jeter : ${pc(1-r-c)}</span>`;
   $("preCell").textContent="";
 }
 function preHandAnswer(cls){
@@ -1378,7 +1379,7 @@ function solvePF(S,a,T=500){
   return {push:Array.from(push,clean), call:Array.from(call,clean)};
 }
 const freqPct = fr_ => { let n=0; for(let i=0;i<169;i++) n+=fr_[i]*nCombos(GRID[i]); return n/1326; };
-function freqStyle(f,col){ return f<=0?"":`background:linear-gradient(to top, ${col} ${Math.round(f*100)}%, #24382c ${Math.round(f*100)}%);color:${f>0.5?"#04140a":"#fff"}`; }
+function freqStyle(f,col){ return f<=0?"background:#4a1c22;color:#e9c9cc":`background:linear-gradient(to top, ${col} ${Math.round(f*100)}%, #4a1c22 ${Math.round(f*100)}%);color:${f>0.5?"#04140a":"#fff"}`; }
 function runPF(){
   if(pfBusy) return;
   const S=Math.min(50,Math.max(1,+$("pfS").value||10)), a=Math.min(1,Math.max(0,+$("pfA").value||0));
@@ -1386,7 +1387,7 @@ function runPF(){
   const go=()=>{
     pfRes=solvePF(S,a); pfRes.S=S; pfRes.a=a;
     drawGrid($("pfGridP"),(l,i)=>({style:freqStyle(pfRes.push[i],"var(--acc)")}));
-    drawGrid($("pfGridC"),(l,i)=>({style:freqStyle(pfRes.call[i],"var(--call)")}));
+    drawGrid($("pfGridC"),(l,i)=>({style:freqStyle(pfRes.call[i],"var(--acc2)")}));
     $("pfInfoP").textContent=`Tapis avec ${pc(freqPct(pfRes.push))} des mains, le reste se couche.`;
     $("pfInfoC").textContent=`Paie avec ${pc(freqPct(pfRes.call))} des mains face au tapis.`;
     $("pfStatus").textContent=`Équilibre calculé pour ${fr(S,1)} grosses blindes${a?` avec une ante de ${fr(a,2)} bb`:""}.`;
@@ -1724,19 +1725,30 @@ function init(){
     $("sIn").value=""; $("sOut").value=""; $("sNotes").value=""; renderSessions();
   };
   $("sExp").onclick=()=>{
+    const backup={app:"flipflop",version:1,date:today(),sessions,villains,hands:rvList,scores:trScore};
     const a=document.createElement("a");
-    a.href=URL.createObjectURL(new Blob([JSON.stringify(sessions,null,1)],{type:"application/json"}));
-    a.download="sessions-poker-"+today()+".json"; a.click();
+    a.href=URL.createObjectURL(new Blob([JSON.stringify(backup)],{type:"application/json"}));
+    a.download="flipflop-sauvegarde-"+today()+".json"; a.click();
   };
   $("sImpB").onclick=()=>$("sImp").click();
   $("sImp").onchange=e=>{
     const f=e.target.files[0]; if(!f) return;
     f.text().then(txt=>{
-      const arr=JSON.parse(txt); if(!Array.isArray(arr)) throw 0;
-      const ids=new Set(sessions.map(s=>s.id)); let n=0;
-      for(const s of arr) if(s&&typeof s.in==="number"&&typeof s.out==="number"&&!ids.has(s.id)){ sessions.push({id:+s.id||Date.now()+n,date:String(s.date||today()),type:String(s.type||"Autre"),notes:String(s.notes||""),in:s.in,out:s.out,h:+s.h||0}); n++; }
-      renderSessions(); alert(n+" partie(s) importée(s).");
-    }).catch(()=>alert("Ce fichier n'est pas une sauvegarde de sessions.")).finally(()=>e.target.value="");
+      const d=JSON.parse(txt);
+      // ancien format : juste la liste des parties
+      const b=Array.isArray(d)?{sessions:d}:(d&&d.app==="flipflop"?d:null);
+      if(!b) throw 0;
+      const merge=(cur,add,ok)=>{ const ids=new Set(cur.map(x=>String(x.id))); let n=0;
+        for(const x of (Array.isArray(add)?add:[])) if(x&&ok(x)&&!ids.has(String(x.id))){ cur.push(x); ids.add(String(x.id)); n++; } return n; };
+      const nS=merge(sessions,b.sessions,s=>typeof s.in==="number"&&typeof s.out==="number");
+      const nV=merge(villains,b.villains,v=>typeof v.name==="string");
+      const nH=merge(rvList,b.hands,h=>h.data&&Array.isArray(h.hero));
+      if(b.scores&&typeof b.scores==="object") for(const [k,v] of Object.entries(b.scores)) if(!trScore[k]||(v&&v.tot>trScore[k].tot)) trScore[k]=v;
+      rvList.sort((x,y)=>y.id-x.id);
+      store.set("pgto_sessions",sessions); store.set("pgto_villains",villains); store.set("pgto_rvlist",rvList); store.set("pgto_tr",trScore);
+      renderSessions(); renderVillains(); renderRvList(); renderRv(); showTrScore();
+      alert(`Sauvegarde récupérée ✅\n${nS} partie(s), ${nV} joueur(s), ${nH} main(s) revue(s) ajoutés.`);
+    }).catch(()=>alert("Ce fichier n'est pas une sauvegarde Flip&Flop.")).finally(()=>e.target.value="");
   };
 
   // revoir une main

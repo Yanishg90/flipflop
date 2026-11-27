@@ -1718,7 +1718,7 @@ function hhTargets(tt){
 }
 function renderHH(){
   const box=$("hhBody");
-  if(!hhHands.length){ box.innerHTML='<div class="card"><p class="help">Aucune main importée pour l\'instant. Choisis tes fichiers d\'historique ci-dessus.</p></div>'; return; }
+  if(!hhHands.length){ box.innerHTML=(hhSumCard()||'<div class="card"><p class="help">Aucune main importée pour l\'instant. Choisis tes fichiers d\'historique ci-dessus.</p></div>'); return; }
   const F=Object.assign({type:"all",pos:"all",hand:"all",per:"all",ev:"all"},store.get("pgto_hhf",{}));
   const now=Date.now(), DAY=86400000;
   const handOk=h=>{ const c=classOf(h.cards[0],h.cards[1]);
@@ -1773,7 +1773,7 @@ function renderHH(){
     <div class="grid2" style="margin-top:16px">
       <div class="card"><h2>📈 Évolution de mes gains</h2>${hhGraph(list)}</div>
       <div class="card"><h2>🏆 Mes tournois et sessions</h2>${hhEvents(list)}</div>
-    </div>
+    </div>${F.type==="cash"?"":hhSumCard()}
     <div class="grid2" style="margin-top:16px"><div class="col">
     <div class="card"><h2>📊 Mes statistiques <button class="q" data-q="vpip">?</button></h2>
       <div class="kpi"><div><small>Mains analysées</small><b>${S.n}</b><small>table de ${tt} joueurs surtout</small></div>
@@ -1970,7 +1970,7 @@ async function hhPickFolder(){
 }
 async function hhListFiles(dir,depth=0,out=[]){
   for await (const [name,h] of dir.entries()){
-    if(h.kind==="file"&&/\.txt$/i.test(name)&&/holdem/i.test(name)&&!/summary/i.test(name)) out.push(h);
+    if(h.kind==="file"&&/\.txt$/i.test(name)&&/holdem/i.test(name)) out.push(h);
     else if(h.kind==="directory"&&depth<4) await hhListFiles(h,depth+1,out);
   }
   return out;
@@ -1992,10 +1992,54 @@ async function hhSync(){
   }catch(e){ $("hhMsg").innerHTML='<p class="err">Impossible de lire le dossier. Choisis-le à nouveau avec le bouton « 📂 ».</p>'; }
 }
 
+/* ---- résumés de tournoi Winamax : place, gains, prix d'entrée ---- */
+let hhSums=store.get("pgto_hhsum",[]); if(!Array.isArray(hhSums)) hhSums=[];
+function hhParseSummary(text){
+  const t=String(text).replace(/\r/g,""), g=re=>(t.match(re)||[])[1];
+  const head=g(/Tournament summary : (.+)/); if(!head) return null;
+  const idm=head.match(/\((\d+)\)\s*$/), name=head.replace(/\(\d+\)\s*$/,"").trim();
+  const bi=(g(/Buy-In : (.+)/)||"").split("+").map(hhNum), cost=bi.reduce((a,b)=>a+b,0);
+  const dm=t.match(/started (\d{4})\/(\d\d)\/(\d\d) (\d\d):(\d\d):(\d\d)/), ts=dm?Date.UTC(+dm[1],dm[2]-1,+dm[3],+dm[4],+dm[5],+dm[6]):0;
+  const dp=t.match(/You played (?:(\d+)h\s*)?(?:(\d+)min\s*)?(?:(\d+)s)?/)||[], dur=(+dp[1]||0)*3600+(+dp[2]||0)*60+(+dp[3]||0);
+  let prize=0, bounty=0;
+  for(const line of t.split("\n").filter(l=>/^You won/i.test(l.trim())))
+    for(const part of line.trim().replace(/^You won\s*/i,"").split("+")){ if(/ticket/i.test(part)) continue; const v=hhNum(part); if(!v) continue; if(/bounty/i.test(part)) bounty+=v; else prize+=v; }
+  return {id:"WS"+(idm?idm[1]:name+"-"+ts),name,cost,rake:bi.length>=2?bi[bi.length-1]:0,players:+g(/Registered players : (\d+)/)||0,
+    prizepool:hhNum(g(/Prizepool : (.+)/)||0),ts,dur,place:+g(/finished in (\d+)/)||0,prize,bounty,
+    type:(g(/Type : (.+)/)||"").trim(),speed:(g(/Speed : (.+)/)||"").trim()};
+}
+function hhSumCard(){
+  if(!hhSums.length) return "";
+  const S=hhSums.slice().sort((a,b)=>b.ts-a.ts);
+  const cost=S.reduce((a,s)=>a+s.cost,0), won=S.reduce((a,s)=>a+s.prize+s.bounty,0), profit=won-cost, itm=S.filter(s=>s.prize>0).length;
+  const best=S.filter(s=>s.place).sort((a,b)=>a.place/Math.max(1,a.players)-b.place/Math.max(1,b.players))[0];
+  const eur=v=>(v<0?"−":"")+fr(Math.abs(v),2).replace(/,00$/,"")+" €";
+  const typeFr=t=>({knockout:"tournoi à primes (KO)",normal:"",freeroll:"freeroll"}[t]??t);
+  let c=0; const pts=[0,...S.slice().reverse().map(s=>c+=s.prize+s.bounty-s.cost)];
+  return `<div class="card" style="margin-top:16px"><h2>💶 Mes résultats de tournois</h2>
+    <div class="kpi">
+      <div><small>Tournois joués</small><b>${S.length}</b></div>
+      <div><small>Bénéfice</small><b style="color:${profit>=0?"var(--acc)":"var(--bad)"}">${profit>=0?"+":""}${eur(profit)}</b><small>${eur(won)} gagnés pour ${eur(cost)} misés</small></div>
+      <div><small>ROI (retour sur mise)</small><b style="color:${profit>=0?"var(--acc)":"var(--bad)"}">${cost?(profit>=0?"+":"−")+fr(Math.abs(profit/cost*100),0)+" %":"—"}</b><small>bénéfice ÷ argent misé</small></div>
+      <div><small>Places payées (ITM)</small><b>${pc(itm/S.length,0)}</b><small>${itm} sur ${S.length} tournoi${S.length>1?"s":""}</small></div>
+      ${best?`<div><small>Meilleur classement</small><b>${best.place}e</b><small>sur ${best.players.toLocaleString("fr-FR")} joueurs</small></div>`:""}
+    </div>
+    ${pts.length>2?`<p class="help" style="margin-top:10px">Évolution du bénéfice, tournoi après tournoi : ${pts.slice(1).map(v=>(v>=0?"+":"")+eur(v)).join(" → ")}</p>`:""}
+    <div class="tscroll" style="margin-top:10px"><table><tr><th>Tournoi</th><th class="r">Place</th><th class="r">Mise</th><th class="r">Gains</th><th class="r">Bénéfice</th></tr>
+    ${S.map(s=>{ const p=s.prize+s.bounty-s.cost; return `<tr><td>${esc(s.name)}<br><span class="help">${new Date(s.ts).toLocaleDateString("fr-FR")} · ${s.players.toLocaleString("fr-FR")} joueurs${typeFr(s.type)?" · "+typeFr(s.type):""}${s.dur?" · "+Math.floor(s.dur/3600)+" h "+String(Math.floor(s.dur%3600/60)).padStart(2,"0"):""}</span></td>
+      <td class="r">${s.place?s.place+"e":"—"}<br><span class="help">${s.place&&s.players?"top "+fr(s.place/s.players*100,0)+" %":""}</span></td><td class="r">${eur(s.cost)}</td>
+      <td class="r">${eur(s.prize+s.bounty)}${s.bounty?`<br><span class="help">dont ${eur(s.bounty)} de primes</span>`:""}</td>
+      <td class="r" style="color:${p>=0?"var(--acc)":"var(--bad)"}"><b>${p>=0?"+":""}${eur(p)}</b></td></tr>`; }).join("")}</table></div>
+    <p class="note">Le ROI se juge sur beaucoup de tournois (au moins 100) : sur quelques tournois, la chance compte énormément.</p></div>`;
+}
+
 async function hhImport(texts){
-  let added=0, dup=0, autre=0, err=0; const ids=new Set(hhHands.map(h=>h.id));
-  for(const t of texts){ const r=hhParse(t); autre+=r.skip.autre; err+=r.skip.erreur;
+  let added=0, dup=0, autre=0, err=0, sAdd=0; const ids=new Set(hhHands.map(h=>h.id)), sIds=new Set(hhSums.map(s=>s.id));
+  for(const t of texts){
+    if(/Tournament summary :/.test(t)){ const s=hhParseSummary(t); if(s&&!sIds.has(s.id)){ sIds.add(s.id); hhSums.push(s); sAdd++; } continue; }
+    const r=hhParse(t); autre+=r.skip.autre; err+=r.skip.erreur;
     for(const h of r.hands){ if(ids.has(h.id)) dup++; else { ids.add(h.id); hhHands.push(h); added++; } } }
+  if(sAdd) store.set("pgto_hhsum",hhSums);
   hhHands.sort((a,b)=>a.ts-b.ts);
   if(hhHands.length>4000) hhHands=hhHands.slice(-4000);
   store.set("pgto_hh",hhHands);
@@ -2005,7 +2049,8 @@ async function hhImport(texts){
     ${autre?`<br><span class="help">${autre} main${autre>1?"s":""} d'un autre jeu (Omaha…) ignorée${autre>1?"s":""}.</span>`:""}
     ${err?`<br><span class="help">${err} main${err>1?"s":""} illisible${err>1?"s":""} (par exemple où tu n'avais pas de cartes).</span>`:""}
     ${saved?"":'<br><span class="err">La mémoire de l\'appli est pleine : les mains les plus anciennes ne sont pas gardées.</span>'}
-    <br><span class="help">Total : ${hhHands.length} mains Hold'em.</span></div>`;
+    ${sAdd?`<br><b>🏆 ${sAdd} résultat${sAdd>1?"s":""} de tournoi importé${sAdd>1?"s":""}.</b>`:""}
+    <br><span class="help">Total : ${hhHands.length} mains Hold'em${hhSums.length?` et ${hhSums.length} résultat${hhSums.length>1?"s":""} de tournoi`:""}.</span></div>`;
   renderHH();
 }
 
@@ -2463,8 +2508,8 @@ function init(){
   $("hhFiles").onchange=async e=>{ const fs=[...e.target.files]; if(!fs.length) return; $("hhMsg").innerHTML='<p class="help">Lecture des mains…</p>';
     const texts=[]; for(const f of fs) texts.push(await f.text()); e.target.value=""; hhImport(texts); };
   $("hhPasteBtn").onclick=()=>{ const t=$("hhPaste").value; if(t.trim()){ hhImport([t]); $("hhPaste").value=""; } };
-  $("hhClear").onclick=()=>{ if(!hhHands.length||!confirm(`Effacer les ${hhHands.length} mains importées ? (Tu pourras les réimporter depuis tes fichiers.)`)) return;
-    hhHands=[]; hhCache.clear(); store.set("pgto_hh",hhHands); store.set("pgto_hhfiles",{}); $("hhMsg").innerHTML=""; renderHH(); };
+  $("hhClear").onclick=()=>{ if((!hhHands.length&&!hhSums.length)||!confirm(`Effacer les ${hhHands.length} mains et ${hhSums.length} résultats de tournoi importés ? (Tu pourras les réimporter depuis tes fichiers.)`)) return;
+    hhHands=[]; hhSums=[]; hhCache.clear(); store.set("pgto_hh",hhHands); store.set("pgto_hhsum",hhSums); store.set("pgto_hhfiles",{}); $("hhMsg").innerHTML=""; renderHH(); };
   renderHHFolder();
   if(hhFolderOK){ $("hhFolderBtn").onclick=hhPickFolder; $("hhSyncBtn").onclick=hhSync; }
   document.addEventListener("input",e=>{ if(e.target.id==="hhOppQ"){ hhOppQuery=e.target.value; renderOppList(); } });
@@ -2624,7 +2669,7 @@ function init(){
     $("sIn").value=""; $("sOut").value=""; $("sNotes").value=""; renderSessions();
   };
   $("sExp").onclick=()=>{
-    const backup={app:"flipflop",version:2,date:today(),sessions,villains,hands:rvList,scores:trScore,imported:hhHands};
+    const backup={app:"flipflop",version:2,date:today(),sessions,villains,hands:rvList,scores:trScore,imported:hhHands,results:hhSums};
     store.set("pgto_lastbackup",Date.now()); const bn=$("backupBanner"); if(bn) bn.remove();
     const a=document.createElement("a");
     a.href=URL.createObjectURL(new Blob([JSON.stringify(backup)],{type:"application/json"}));
@@ -2643,7 +2688,9 @@ function init(){
       const nS=merge(sessions,b.sessions,s=>typeof s.in==="number"&&typeof s.out==="number");
       const nV=merge(villains,b.villains,v=>typeof v.name==="string");
       const nH=merge(rvList,b.hands,h=>h.data&&Array.isArray(h.hero));
-      const nI=merge(hhHands,b.imported,h=>h&&h.id&&Array.isArray(h.seats)&&Array.isArray(h.acts)); if(nI){ hhHands.sort((a,c)=>a.ts-c.ts); store.set("pgto_hh",hhHands); renderHH(); }
+      const nI=merge(hhHands,b.imported,h=>h&&h.id&&Array.isArray(h.seats)&&Array.isArray(h.acts)); if(nI){ hhHands.sort((a,c)=>a.ts-c.ts); store.set("pgto_hh",hhHands); }
+      const nR=merge(hhSums,b.results,s=>s&&s.id&&typeof s.cost==="number"); if(nR) store.set("pgto_hhsum",hhSums);
+      if(nI||nR) renderHH();
       if(b.scores&&typeof b.scores==="object") for(const [k,v] of Object.entries(b.scores)) if(!trScore[k]||(v&&v.tot>trScore[k].tot)) trScore[k]=v;
       rvList.sort((x,y)=>y.id-x.id);
       store.set("pgto_sessions",sessions); store.set("pgto_villains",villains); store.set("pgto_rvlist",rvList); store.set("pgto_tr",trScore);

@@ -842,6 +842,9 @@ const GLOSS={
   af:["Facteur d'agression (AF)","Après le flop : (mises + relances) ÷ paiements. Moins de 1,5 = passif (tu suis trop), entre 2 et 4 = bien, plus de 5 = très agressif."],
   wtsd:["WTSD (aller à l'abattage)","Le % des flops vus où tu vas jusqu'à montrer tes cartes. Trop haut = tu paies trop jusqu'au bout. Trop bas = tu abandonnes trop facilement."],
   steal:["Vol des blindes","Relancer depuis le CO, le bouton ou la petite blinde quand tout le monde s'est couché, pour gagner les blindes. Les bons joueurs le font souvent."],
+  checkraise:["Check-raise","Tu checkes (tu passes), l'adversaire mise, puis tu relances. Ça sert à gagner plus avec une grosse main, ou à bluffer quand l'adversaire mise trop souvent."],
+  wwsf:["Gagner quand on voit le flop (WWSF)","La part des flops que tu vois et dont tu finis par gagner le pot. Autour de 45 à 50 %, c'est bien : en dessous, tu abandonnes trop facilement."],
+  allinev:["Chance aux tapis (all-in EV)","Quand tu fais tapis et que l'adversaire montre ses cartes, on calcule ce que tu aurais gagné en moyenne avec tes chances à ce moment-là. La différence avec le vrai résultat, c'est la chance (ou la malchance)."],
   bb100:["bb/100","Ce que tu gagnes (ou perds) en grosses blindes pour 100 mains jouées. C'est la mesure de base pour savoir si tu gagnes vraiment."]
 };
 function showGloss(k){ const g=GLOSS[k]; if(!g) return; $("glossT").textContent=g[0]; $("glossD").textContent=g[1]; $("gloss").classList.add("on"); }
@@ -1641,29 +1644,34 @@ function hhInfo(h){
     spot:null,err:null,scen:null,act:null,opp:{},streets:{},potStart:{},villain:-1,opener:-1,threeBettor:-1,lastRaiser:-1};
   // --- avant le flop
   const pre=h.acts.filter(a=>a[0]===0);
-  let raises=0, limpers=0, heroFirst=null, heroRaisedFirst=false, faced3=false;
+  let raises=0, limpers=0, heroFirst=null, heroRaisedFirst=false, faced3=false, callers=0;
   for(const o of others) I.opp[o]={vpip:false,pfr:false,pa:0,pc:0};
   for(const [s,p,v] of pre){
     if(p===H){
-      if(heroFirst===null){ heroFirst=v; I.spot=raises===0?(limpers?"limp":"open"):raises===1?"raised":"3bet+"; if(raises===1) I.tbOpp=true; if(raises===0&&!limpers&&["CO","BTN","SB"].includes(I.pos)) I.stealOpp=true; heroRaisedFirst=raises===0&&v==="r"; }
+      if(heroFirst===null){ heroFirst=v; I.spot=raises===0?(limpers?"limp":"open"):raises===1?"raised":"3bet+"; if(raises===1) I.tbOpp=true; if(raises===0&&!limpers&&["CO","BTN","SB"].includes(I.pos)) I.stealOpp=true; heroRaisedFirst=raises===0&&v==="r";
+        // défense de la grosse blinde face à un vol (relance seule depuis CO / bouton / petite blinde)
+        if(I.pos==="BB"&&raises===1&&!callers&&!limpers&&["CO","BTN","SB"].includes(pos[I.opener])){ I.dsOpp=true; I.ds=v!=="f"; } }
       else if(heroRaisedFirst&&faced3&&!I.f3Opp){ I.f3Opp=true; I.f3=v==="f"; I.act3=v; }
       if(v==="c"||v==="r") I.vpip=true; if(v==="r") I.pfr=true; if(v==="f") I.folded=true;
     } else {
       if(v==="c"||v==="r") I.opp[p].vpip=true; if(v==="r") I.opp[p].pfr=true;
       if(v==="r"&&heroRaisedFirst&&!faced3){ faced3=true; I.threeBettor=p; }
     }
-    if(v==="r"){ raises++; if(raises===1) I.opener=p; I.lastRaiser=p; } else if(v==="c"&&raises===0) limpers++;
+    if(v==="r"){ raises++; if(raises===1) I.opener=p; I.lastRaiser=p; } else if(v==="c"&&raises===0) limpers++; else if(v==="c"&&p!==H&&heroFirst===null) callers++;
   }
   if(I.tbOpp&&heroFirst==="r") I.tb=true;
+  I.f4=I.f3Opp&&I.act3==="r";
   if(I.stealOpp&&heroFirst==="r") I.steal=true;
   I.heroFirst=heroFirst;
   // --- après le flop : pot au début de chaque tour, actions de toi, adversaires
   let pot=h.posts.reduce((a,x)=>a+x[2],0); const commit=new Array(n).fill(0); h.posts.forEach(([p,k,a])=>{ if(k!=="a") commit[p]+=a; });
-  let cur=0, betOnStreet=false, firstBettor=-1;
+  let cur=0, betOnStreet=false, firstBettor=-1, heroChecked=false;
   const settle=()=>{ for(let k=0;k<n;k++) commit[k]=0; };
   for(const [s,p,v,a,to] of h.acts){
     if(s!==cur){ settle(); cur=s; betOnStreet=false; firstBettor=-1; I.potStart[s]=pot; }
     const maxC=Math.max(...commit);
+    // check-raise au flop : tu as checké, on a misé, tu peux relancer
+    if(s===1&&p===H){ if(v==="x"&&!betOnStreet) heroChecked=true; else if(heroChecked&&betOnStreet&&!I.crOpp){ I.crOpp=true; I.cr=v==="r"; } }
     if(p===H&&s>0&&!I.streets[s]) I.streets[s]={v,amt:v==="r"?to:a,face:maxC-commit[H],betBefore:betOnStreet};
     if(s>0){
       if(p===H){ if(v==="b"||v==="r") I.pa++; else if(v==="c") I.pc++; if(v==="f") I.folded=true; }
@@ -1678,6 +1686,7 @@ function hhInfo(h){
   if(I.saw&&I.lastRaiser===H&&I.streets[1]&&!I.streets[1].betBefore){ I.cbOpp=true; I.cb=I.streets[1].v==="b"; }
   I.wtsd=I.saw&&h.sd&&!h.acts.some(x=>x[1]===H&&x[2]==="f");
   I.wsd=I.wtsd&&h.net>0;
+  I.wwsf=I.saw&&h.net>0;
   // adversaire principal (pour « Revoir »)
   const stayed=others.filter(o=>!h.acts.some(x=>x[1]===o&&x[2]==="f"));
   I.villain=(stayed.length?stayed:others).sort((a,b)=>h.acts.filter(x=>x[1]===b).length-h.acts.filter(x=>x[1]===a).length)[0];
@@ -1700,10 +1709,11 @@ function hhInfo(h){
 
 // statistiques de toi sur un groupe de mains
 function hhStats(list){
-  const S={n:list.length,vpip:0,pfr:0,tb:0,tbO:0,f3:0,f3O:0,st:0,stO:0,cb:0,cbO:0,fcb:0,fcbO:0,pa:0,pc:0,saw:0,wtsd:0,wsd:0,bb:0,errs:{},graded:0,pos:{}};
+  const S={n:list.length,vpip:0,pfr:0,tb:0,tbO:0,f3:0,f3O:0,f4:0,st:0,stO:0,ds:0,dsO:0,cb:0,cbO:0,fcb:0,fcbO:0,cr:0,crO:0,wwsf:0,pa:0,pc:0,saw:0,wtsd:0,wsd:0,bb:0,errs:{},graded:0,pos:{}};
   for(const h of list){
     const I=hhInfo(h);
     S.vpip+=I.vpip; S.pfr+=I.pfr; S.tb+=I.tb; S.tbO+=I.tbOpp; S.f3+=I.f3; S.f3O+=I.f3Opp; S.st+=I.steal; S.stO+=I.stealOpp;
+    S.f4+=I.f4; S.ds+=!!I.ds; S.dsO+=!!I.dsOpp; S.cr+=!!I.cr; S.crO+=!!I.crOpp; S.wwsf+=I.wwsf;
     S.cb+=I.cb; S.cbO+=I.cbOpp; S.fcb+=I.fcb; S.fcbO+=I.fcbOpp; S.pa+=I.pa; S.pc+=I.pc; S.saw+=I.saw; S.wtsd+=I.wtsd; S.wsd+=I.wsd; S.bb+=I.netBB;
     if(I.scen) S.graded++; if(I.err) (S.errs[I.err]=S.errs[I.err]||[]).push(h);
     const p=S.pos[I.pos]||(S.pos[I.pos]={n:0,vpip:0,pfr:0,bb:0}); p.n++; p.vpip+=I.vpip; p.pfr+=I.pfr; p.bb+=I.netBB;
@@ -1713,8 +1723,8 @@ function hhStats(list){
 // cibles (joueur gagnant) selon le nombre de joueurs à la table
 function hhTargets(tt){
   return tt===6
-    ?{vpip:[20,28],pfr:[16,23],tb:[6,11],f3:[40,60],st:[30,48],cb:[50,72],fcb:[35,55],af:[2,4],wtsd:[24,32],wsd:[49,100]}
-    :{vpip:[15,22],pfr:[12,18],tb:[5,9],f3:[40,60],st:[28,45],cb:[50,72],fcb:[35,55],af:[2,4],wtsd:[24,32],wsd:[49,100]};
+    ?{vpip:[20,28],pfr:[16,23],tb:[6,11],f3:[40,60],st:[30,48],cb:[50,72],fcb:[35,55],af:[2,4],wtsd:[24,32],wsd:[49,100],f4:[18,35],ds:[50,75],cr:[6,15],wwsf:[42,55]}
+    :{vpip:[15,22],pfr:[12,18],tb:[5,9],f3:[40,60],st:[28,45],cb:[50,72],fcb:[35,55],af:[2,4],wtsd:[24,32],wsd:[49,100],f4:[18,35],ds:[45,70],cr:[6,15],wwsf:[42,55]};
 }
 function renderHH(){
   const box=$("hhBody");
@@ -1739,7 +1749,11 @@ function renderHH(){
     ["cbet","Se couche face au c-bet",pct(S.fcb,S.fcbO),S.fcbO,"Tu abandonnes au flop quand le relanceur mise","fcb"],
     ["af","Agression après le flop",af,S.pa+S.pc,"(mises + relances) ÷ paiements","af"],
     ["wtsd","Va à l'abattage",pct(S.wtsd,S.saw),S.saw,"Sur les flops que tu vois","wtsd"],
-    ["wtsd","Gagne à l'abattage",pct(S.wsd,S.wtsd),S.wtsd,"Quand tu montres tes cartes","wsd"]
+    ["wtsd","Gagne à l'abattage",pct(S.wsd,S.wtsd),S.wtsd,"Quand tu montres tes cartes","wsd"],
+    ["3bet","4-bet",pct(S.f4,S.f3O),S.f3O,"Tu re-sur-relances quand on te sur-relance","f4"],
+    ["steal","Défense de la grosse blinde",pct(S.ds,S.dsO),S.dsO,"Tu paies ou relances quand le CO, le bouton ou la petite blinde attaque ta grosse blinde","ds"],
+    ["checkraise","Check-raise au flop",pct(S.cr,S.crO),S.crO,"Tu checkes, l'adversaire mise, tu relances","cr"],
+    ["wwsf","Gagne quand il voit le flop",pct(S.wwsf,S.saw),S.saw,"Part des flops vus où tu gagnes le pot","wwsf"]
   ];
   const keyOf=r=>r[5]||r[0];
   const judge=r=>{ const t=T[keyOf(r)]; if(r[2]===null||r[3]<15||!t) return ["⚪","pas assez de mains"]; return r[2]<t[0]?["⚠️","trop bas"]:r[2]>t[1]?["⚠️","trop haut"]:["✅","bien"]; };
@@ -1762,6 +1776,8 @@ function renderHH(){
   chk("fcb",rows[6],()=>{},()=>add(2,"Tu abandonnes trop au flop",`Tu te couches ${fr(rows[6][2],0)} % du temps face à une mise de continuation. Défends plus avec tes paires et tes tirages.`));
   if(af!==null&&S.pa+S.pc>=20){ if(af<T.af[0]) add(2,"Trop passif après le flop",`Ton agression est de ${fr(af,1)} : tu paies beaucoup et tu mises peu. Mise tes bonnes mains pour la valeur au lieu de juste suivre.`); if(af>T.af[1]+1) add(1,"Très agressif après le flop","Tu mises et relances énormément : attention aux bluffs trop fréquents."); }
   chk("wtsd",rows[8],()=>add(1,"Tu abandonnes souvent avant l'abattage","Tu vas rarement jusqu'au bout : tu te fais peut-être bluffer trop souvent."),()=>add(2,"Tu vas trop souvent à l'abattage","Tu paies jusqu'au bout trop souvent : sur les grosses mises de la river, les joueurs ont souvent ce qu'ils annoncent."));
+  chk("ds",rows[11],()=>add(2,"Tu laisses voler ta grosse blinde",`Quand le CO, le bouton ou la petite blinde relance, tu défends seulement ${fr(rows[11][2],0)} % du temps. Tu as déjà payé une blinde : défends plus large (paie ou relance), regarde le tableau « Grosse blinde contre une relance du bouton ».`),()=>{});
+  chk("wwsf",rows[13],()=>add(1,"Tu gagnes peu de pots après le flop",`Tu ne gagnes que ${fr(rows[13][2],0)} % des flops que tu vois. Mise plus souvent quand l'adversaire montre de la faiblesse (quand il checke).`),()=>{});
   for(const [k,arr] of Object.entries(S.errs)){ const share=arr.length/Math.max(1,S.graded); if(arr.length>=2&&share>=0.04) add(k==="mix"?1:share>0.1?3:2,PRE_ERR[k][0],`${arr.length} main${arr.length>1?"s":""} sur ${S.graded} vérifiées. ${PRE_ERR[k][1]}`); }
   leaks.sort((a,b)=>b[0]-a[0]);
   // résultats : bb/100 en cash game, jetons en tournoi (les blindes y augmentent)
@@ -1820,19 +1836,52 @@ function hhFilterBar(F){
     ${sel("hand",[["all","Toutes les mains"],["pair","Paires"],["suited","Assorties (même couleur)"],["off","Dépareillées"],["ace","As + une carte"],["broad","Deux figures ou 10"]])}
     ${active?'<button class="btn sec small" id="hhFReset">Tout afficher</button>':""}</div></div>`;
 }
+// chance aux tapis : ce que tu aurais gagné en moyenne quand tu étais à tapis contre des cartes montrées
+function hhEV(h){
+  const I=hhInfo(h); if(I.evDone) return I.ev; I.evDone=true; I.ev=null;
+  if(!h.sd||h.board.length<5) return null;
+  const H=h.hero, n=h.seats.length, folded=new Set(h.acts.filter(a=>a[2]==="f").map(a=>a[1]));
+  if(folded.has(H)) return null;
+  const live=[...Array(n).keys()].filter(p=>p!==H&&!folded.has(p));
+  if(live.length!==1) return null;
+  const V=live[0], last=h.acts[h.acts.length-1];
+  if(!h.shows[V]||!last||last[0]>=3) return null; // il faut que le tapis ait eu lieu avant la river
+  const inv=new Array(n).fill(0), commit=new Array(n).fill(0);
+  for(const [p,k,a] of h.posts){ if(k==="a") inv[p]+=a; else commit[p]+=a; }
+  let cur=0;
+  for(const [s,p,v,a,to] of h.acts){ if(s!==cur){ for(let k=0;k<n;k++){ inv[k]+=commit[k]; commit[k]=0; } cur=s; } if(v==="c"||v==="b") commit[p]+=a; else if(v==="r") commit[p]=to||commit[p]+a; }
+  for(let k=0;k<n;k++) inv[k]+=commit[k];
+  if(![H,V].some(p=>h.seats[p][2]-inv[p]<=0.001)) return null;
+  const m=Math.min(inv[H],inv[V]), pot=inv.reduce((a,x)=>a+Math.min(x,m),0);
+  const eq=quickEquity(h.cards,h.board.slice(0,[0,3,4][last[0]]),{t:1,c:h.shows[V]},20000);
+  if(eq===null) return null;
+  I.ev={ev:eq*pot-m,eq,street:last[0]};
+  return I.ev;
+}
 function hhGraph(list){
   const L=list.slice().sort((a,b)=>a.ts-b.ts);
   const chips=L.every(h=>h.tour)&&new Set(L.map(hhEventKey)).size===1;
-  let c=0; const pts=[0,...L.map(h=>c+=chips?h.net:h.net/h.bb)];
+  const u=h=>chips?1:1/h.bb;
+  let c=0, e=0, luck=0, nAll=0, won=0; const pts=[0], evs=[0];
+  for(const h of L){
+    const E=hhEV(h); c+=h.net*u(h);
+    if(E){ e+=E.ev*u(h); luck+=(h.net-E.ev)*u(h); nAll++; if(h.net>0) won++; } else e+=h.net*u(h);
+    pts.push(c); evs.push(e);
+  }
   if(pts.length<3) return '<p class="help">Il faut plus de mains pour tracer la courbe.</p>';
-  const W=600,H=200,mn=Math.min(...pts),mx=Math.max(...pts),span=(mx-mn)||1;
+  const all=[...pts,...evs], W=600,H=200,mn=Math.min(...all),mx=Math.max(...all),span=(mx-mn)||1;
   const X=i=>10+i*(W-20)/(pts.length-1), Y=v=>H-18-(v-mn)/span*(H-36), last=pts[pts.length-1];
   const unit=v=>chips?Math.round(v).toLocaleString("fr-FR")+" jetons":fr(v,1)+" bb";
+  const line=(arr,col,dash)=>`<polyline fill="none" stroke="${col}" stroke-width="2.5" ${dash?'stroke-dasharray="6 4"':""} points="${arr.map((v,i)=>X(i).toFixed(1)+","+Y(v).toFixed(1)).join(" ")}"/>`;
   return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Évolution des gains">
     <line x1="10" x2="${W-10}" y1="${Y(0)}" y2="${Y(0)}" stroke="#2c4636" stroke-dasharray="4"/>
-    <polyline fill="none" stroke="${last>=0?"#3ccf7a":"#ff6b6b"}" stroke-width="2.5" points="${pts.map((v,i)=>X(i).toFixed(1)+","+Y(v).toFixed(1)).join(" ")}"/>
+    ${nAll?line(evs,"#f2c14e",true):""}${line(pts,last>=0?"#3ccf7a":"#ff6b6b")}
     <text x="12" y="13">${unit(mx)}</text><text x="12" y="${H-3}">${unit(mn)}</text></svg>
-    <p class="help">Résultat cumulé sur ${L.length} mains : <b style="color:${last>=0?"var(--acc)":"var(--bad)"}">${last>=0?"+":""}${unit(last)}</b>${chips?"":" (en grosses blindes, pour comparer des niveaux différents)"}.</p>`;
+    <div class="legend"><span><i style="background:${last>=0?"#3ccf7a":"#ff6b6b"}"></i>ce que tu as vraiment gagné</span>${nAll?'<span><i style="background:#f2c14e"></i>sans la chance aux tapis</span>':""}</div>
+    <p class="help">Résultat cumulé sur ${L.length} mains : <b style="color:${last>=0?"var(--acc)":"var(--bad)"}">${last>=0?"+":""}${unit(last)}</b>${chips?"":" (en grosses blindes, pour comparer des niveaux différents)"}.</p>
+    ${nAll?`<div class="rvi ${luck>=0?"rv-good":"rv-bad"}"><b>🍀 Chance aux tapis <button class="q" data-q="allinev">?</button></b><br>
+      Sur ${nAll} tapis où les cartes ont été montrées (tu en as gagné ${won}), ${luck>=0?"tu as eu de la <b>chance</b>":"tu as eu de la <b>malchance</b>"} : environ <b>${luck>=0?"+":"−"}${unit(Math.abs(luck))}</b> par rapport à ce que tes chances te donnaient.
+      Sans cette ${luck>=0?"chance":"malchance"}, ton résultat aurait été de <b>${e>=0?"+":"−"}${unit(Math.abs(e))}</b> (la courbe jaune) : c'est ce chiffre qui montre le vrai niveau de ton jeu.</div>`:'<p class="help">Aucun tapis avec cartes montrées : pas de calcul de chance pour l\'instant.</p>'}`;
 }
 function hhEvents(list){
   const G={};

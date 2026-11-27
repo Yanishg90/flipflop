@@ -333,11 +333,11 @@ details ul{padding-left:20px;margin:6px 0}
   <div class="card"><h2>2. Les joueurs <button class="q" data-q="range" aria-label="Explication">?</button></h2>
    <div class="f"><label>Qui a relancé avant le flop ?</label><select id="svPfa"><option value="hero">Toi</option><option value="villain">L'adversaire</option></select></div>
    <div class="f"><label>Qui parle en premier après le flop ?</label><select id="svOop"><option value="1">Toi (tu es hors de position)</option><option value="0">L'adversaire (tu es en position)</option></select></div>
-   <h3>Ta range (les mains que tu peux encore avoir à la river)</h3>
+   <h3>Ta range (les mains que tu peux encore avoir à ce moment du coup)</h3>
    <div class="row"><input type="text" id="svRH"></div><div class="row"><select id="svRHp" style="max-width:100%"><option value="">Choisir une range type…</option></select></div><div class="help" id="svRHi"></div>
    <h3>Sa range</h3>
    <div class="row"><input type="text" id="svRV"></div><div class="row"><select id="svRVp" style="max-width:100%"><option value="">Choisir une range type…</option></select></div><div class="help" id="svRVi"></div>
-   <p class="note">Plus les ranges sont réalistes (seulement les mains encore là à la river), plus le résultat est juste.</p>
+   <p class="note">Plus les ranges sont réalistes (seulement les mains encore là à ce moment du coup), plus le résultat est juste.</p>
   </div>
   <div class="card"><h2>3. Les montants</h2>
    <div class="f"><label>Pot au début de ce tour</label><input type="number" id="svPot" min="0"></div>
@@ -1805,8 +1805,8 @@ function hhStats(list){
 // cibles (joueur gagnant) selon le nombre de joueurs à la table
 function hhTargets(tt){
   return tt===6
-    ?{vpip:[20,28],pfr:[16,23],tb:[6,11],f3:[40,60],st:[30,48],cb:[50,72],fcb:[35,55],af:[2,4],wtsd:[24,32],wsd:[49,100],f4:[18,35],ds:[50,75],cr:[6,15],wwsf:[42,55]}
-    :{vpip:[15,22],pfr:[12,18],tb:[5,9],f3:[40,60],st:[28,45],cb:[50,72],fcb:[35,55],af:[2,4],wtsd:[24,32],wsd:[49,100],f4:[18,35],ds:[45,70],cr:[6,15],wwsf:[42,55]};
+    ?{vpip:[20,28],pfr:[16,23],tb:[6,11],f3:[40,60],st:[30,48],cb:[50,72],fcb:[35,55],af:[2,4],wtsd:[24,32],wsd:[49,100],f4:[18,35],ds:[50,75],cr:[6,15],wwsf:[42,100]}
+    :{vpip:[15,22],pfr:[12,18],tb:[5,9],f3:[40,60],st:[28,45],cb:[50,72],fcb:[35,55],af:[2,4],wtsd:[24,32],wsd:[49,100],f4:[18,35],ds:[45,70],cr:[6,15],wwsf:[42,100]};
 }
 function renderHH(){
   const box=$("hhBody");
@@ -1840,7 +1840,7 @@ function renderHH(){
   const keyOf=r=>r[5]||r[0];
   const judge=r=>{ const t=T[keyOf(r)]; if(r[2]===null||r[3]<15||!t) return ["⚪","pas assez de mains"]; return r[2]<t[0]?["⚠️","trop bas"]:r[2]>t[1]?["⚠️","trop haut"]:["✅","bien"]; };
   const fmt=(r)=>r[2]===null?"—":keyOf(r)==="af"?fr(r[2],1):fr(r[2],0)+" %";
-  const tgt=r=>{ const t=T[keyOf(r)]; return !t?"":keyOf(r)==="af"?`${t[0]} à ${t[1]}`:keyOf(r)==="wsd"?`≥ ${t[0]} %`:`${t[0]} à ${t[1]} %`; };
+  const tgt=r=>{ const t=T[keyOf(r)]; return !t?"":keyOf(r)==="af"?`${t[0]} à ${t[1]}`:(keyOf(r)==="wsd"||keyOf(r)==="wwsf")?`≥ ${t[0]} %`:`${t[0]} à ${t[1]} %`; };
   // fuites
   const leaks=[];
   const add=(sev,t,d)=>leaks.push([sev,t,d]);
@@ -1876,7 +1876,7 @@ function renderHH(){
     <div class="card"><h2>📊 Mes statistiques <button class="q" data-q="vpip">?</button></h2>
       <div class="kpi"><div><small>Mains analysées</small><b>${S.n}</b><small>table de ${tt} joueurs surtout</small></div>
         ${res!==null?`<div><small>Résultat en cash game</small><b style="color:${res>=0?"var(--acc)":"var(--bad)"}">${res>=0?"+":""}${fr(res,1)} bb/100</b><small>sur ${cashL.length} mains <button class="q" data-q="bb100">?</button></small></div>`:""}
-        ${tourL.length?`<div><small>Résultat en tournoi</small><b style="color:${chips>=0?"var(--acc)":"var(--bad)"}">${chips>=0?"+":""}${Math.round(chips).toLocaleString("fr-FR")}</b><small>jetons sur ${tourL.length} mains</small></div>`:""}
+        ${tourL.length?`<div><small>Résultat en tournoi</small><b style="color:${chips>=0?"var(--acc)":"var(--bad)"}">${chips>=0?"+":"−"}${Math.abs(Math.round(chips)).toLocaleString("fr-FR")}</b><small>jetons sur ${tourL.length} mains</small></div>`:""}
         <div><small>Erreurs préflop</small><b style="color:${errTotal?"var(--acc2)":"var(--acc)"}">${S.graded?pc(errTotal/S.graded,0):"—"}</b><small>${errTotal} sur ${S.graded} décisions vérifiées</small></div></div>
       <div class="tscroll" style="margin-top:10px"><table><tr><th>Statistique</th><th class="r">Toi</th><th class="r">Bon joueur</th><th></th></tr>
       ${rows.map(r=>{ const j=judge(r); return `<tr><td>${r[1]} <button class="q" data-q="${r[0]}">?</button><br><span class="help">${r[4]} · ${r[3]} cas</span></td><td class="r"><b>${fmt(r)}</b></td><td class="r help">${tgt(r)}</td><td class="r" title="${j[1]}">${j[0]}</td></tr>`; }).join("")}</table></div>
@@ -1953,7 +1953,7 @@ function hhGraph(list){
   if(pts.length<3) return '<p class="help">Il faut plus de mains pour tracer la courbe.</p>';
   const all=[...pts,...evs], W=600,H=200,mn=Math.min(...all),mx=Math.max(...all),span=(mx-mn)||1;
   const X=i=>10+i*(W-20)/(pts.length-1), Y=v=>H-18-(v-mn)/span*(H-36), last=pts[pts.length-1];
-  const unit=v=>chips?Math.round(v).toLocaleString("fr-FR")+" jetons":fr(v,1)+" bb";
+  const unit=v=>(v<0?"−":"")+(chips?Math.abs(Math.round(v)).toLocaleString("fr-FR")+" jetons":fr(Math.abs(v),1)+" bb");
   const line=(arr,col,dash)=>`<polyline fill="none" stroke="${col}" stroke-width="2.5" ${dash?'stroke-dasharray="6 4"':""} points="${arr.map((v,i)=>X(i).toFixed(1)+","+Y(v).toFixed(1)).join(" ")}"/>`;
   return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Évolution des gains">
     <line x1="10" x2="${W-10}" y1="${Y(0)}" y2="${Y(0)}" stroke="#2c4636" stroke-dasharray="4"/>
@@ -1971,7 +1971,7 @@ function hhEvents(list){
   const arr=Object.entries(G).sort((a,b)=>b[1].t1-a[1].t1);
   return `<div class="tscroll"><table><tr><th>Tournoi / session</th><th class="r">Mains</th><th class="r">Durée</th><th class="r">Résultat</th></tr>
     ${arr.map(([k,g])=>{ const min=Math.round((g.t1-g.t0)/60000); return `<tr><td>${esc(hhEventName(k))}<br><span class="help">VPIP ${pc(g.vpip/g.n,0)}</span></td><td class="r">${g.n}</td><td class="r">${min>=60?Math.floor(min/60)+" h "+String(min%60).padStart(2,"0"):min+" min"}</td>
-      <td class="r" style="color:${g.net>=0?"var(--acc)":"var(--bad)"}"><b>${g.net>=0?"+":""}${g.tour?Math.round(g.net).toLocaleString("fr-FR")+" jetons":fr(g.bb,1)+" bb"}</b></td></tr>`; }).join("")}</table></div>
+      <td class="r" style="color:${g.net>=0?"var(--acc)":"var(--bad)"}"><b>${g.net>=0?"+":"−"}${g.tour?Math.abs(Math.round(g.net)).toLocaleString("fr-FR")+" jetons":fr(Math.abs(g.bb),1)+" bb"}</b></td></tr>`; }).join("")}</table></div>
     <p class="help">Choisis un tournoi dans les filtres pour voir ses statistiques et sa courbe.</p>`;
 }
 function hhSorted(list,mode){
@@ -2390,7 +2390,7 @@ function runSolver(){
         } else {
           h+=k>=0?`<p>👉 S'il mise : ${mix(res.callB[k],"payer","te coucher")}.<br>👉 S'il checke : ${mix(res.betC[k],"miser","checker")}.</p>`
                  :`<p>👉 Ta main n'est pas dans ta range, voici les meilleurs choix : s'il mise, <b>${bst.callB>=0?"payer":"te coucher"}</b> · s'il checke, <b>${best(bst.bet,bst.check,"miser","checker")}</b>.</p>`;
-          h+=`<p class="help">Gain moyen si tu paies sa mise : ${fr(bst.callB,1)} (se coucher = 0) · s'il checke : miser ${fr(bst.bet,1)}, checker ${fr(bst.check,1)}.</p>`;
+          h+=`<p class="help">Gain moyen si tu paies sa mise : ${fr(bst.callB,1).replace("-","−")} (se coucher = 0) · s'il checke : miser ${fr(bst.bet,1)}, checker ${fr(bst.check,1)}.</p>`;
         }
       }
     } else h+='<p class="help">Mets tes 2 cartes plus haut pour voir quoi faire avec ta main.</p>';

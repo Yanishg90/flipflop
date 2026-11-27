@@ -1,0 +1,8 @@
+name = "flipflop-photo"
+main = "src/index.js"
+compatibility_date = "2026-11-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Les deux secrets (jamais écrits ici) :
+#   ANTHROPIC_API_KEY  -> ta clé Anthropic
+#   APP_CODE           -> le code d'accès que tu choisis, à recopier dans l'appli

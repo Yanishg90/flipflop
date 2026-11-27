@@ -226,6 +226,14 @@ details ul{padding-left:20px;margin:6px 0}
     <h2>1. Ta main</h2>
     <div class="f"><label>Joueurs à la table</label><select id="rvTable"><option value="6">6 joueurs (en ligne)</option><option value="9">9 joueurs (casino, club)</option></select></div>
     <div class="f"><label>Ta place à la table</label><select id="rvPos"></select></div>
+    <div class="row"><button class="btn" id="rvPhotoBtn">📸 Remplir avec une photo</button><input type="file" id="rvPhoto" accept="image/*" capture="environment" hidden></div>
+    <p class="help">Après la partie : repose tes 2 cartes en bas, le tableau au milieu, les cartes de l'adversaire en haut (s'il les a montrées), puis prends la photo.</p>
+    <div id="rvPhotoMsg"></div>
+    <details id="rvPhotoSet"><summary>⚙️ Réglages de la photo</summary>
+     <div class="f"><label>Adresse du serveur photo</label><input type="text" id="rvPhUrl" placeholder="https://flipflop-photo….workers.dev"></div>
+     <div class="f"><label>Code d'accès</label><input type="text" id="rvPhCode" placeholder="ton code secret" autocomplete="off"></div>
+     <div class="row"><button class="btn sec small" id="rvPhSave">Enregistrer</button><span class="help" id="rvPhInfo"></span></div>
+    </details>
     <p class="help">Tes cartes :</p>
     <div class="slots" id="rvHero"></div>
     <p class="help" style="margin-top:12px">Le tableau (seulement les cartes qui sont sorties) :</p>
@@ -398,7 +406,12 @@ details ul{padding-left:20px;margin:6px 0}
  <p class="intro">En tournoi, tes jetons ne valent pas leur poids en euros. L'ICM calcule ce que vaut vraiment ton tapis en argent, selon les prix à gagner.</p>
  <div class="grid2">
   <div class="card">
-   <h2>Les joueurs restants</h2>
+   <h2>Les blindes</h2>
+   <div class="f"><label>Petite blinde (jetons)</label><input type="number" id="icmSB" value="50" min="0"></div>
+   <div class="f"><label>Grosse blinde (jetons)</label><input type="number" id="icmBB" value="100" min="0"></div>
+   <div class="f"><label>Ante par joueur (jetons, 0 s'il n'y en a pas)</label><input type="number" id="icmAnte" value="0" min="0"></div>
+   <h2 style="margin-top:14px">Les joueurs restants</h2>
+   <p class="help">Entre le tapis de chacun en jetons : l'appli le convertit en grosses blindes.</p>
    <div id="icmRows"></div>
    <div class="row"><button class="btn sec small" id="icmAdd">+ Ajouter un joueur</button></div>
    <h2 style="margin-top:14px">Les prix (du 1er au dernier payé)</h2>
@@ -417,6 +430,7 @@ details ul{padding-left:20px;margin:6px 0}
   <div class="f"><label>Toi</label><select id="icMe"></select></div>
   <div class="f"><label>Celui qui fait tapis</label><select id="icHim"></select></div>
   <div class="f"><label>Jetons déjà au milieu (blindes, antes)</label><input type="number" id="icDead" value="0" min="0"></div>
+  <div class="row"><button class="btn sec small" id="icDeadAuto">Mettre les blindes + antes</button><span class="help" id="icDeadBB"></span></div>
   <div class="f"><label>Tes chances de gagner (%)</label><input type="number" id="icEq" value="45" min="0" max="100" step="0.1"></div>
   <div class="row"><button class="btn sec small" id="icUseEq">Prendre mon dernier calcul de chances</button></div>
   <div id="icOut"></div>
@@ -1286,6 +1300,41 @@ function rvAnalyze(){
   saveRv(); renderRvStreets();
   return true;
 }
+/* ---- remplir une main depuis une photo (après la partie) ---- */
+const photoCfg=()=>store.get("pgto_photo",{url:"",code:""});
+async function photoToBase64(file){
+  const url=URL.createObjectURL(file), img=new Image();
+  await new Promise((ok,ko)=>{ img.onload=ok; img.onerror=ko; img.src=url; });
+  const k=Math.min(1,1280/Math.max(img.naturalWidth,img.naturalHeight)), c=document.createElement("canvas");
+  c.width=Math.round(img.naturalWidth*k); c.height=Math.round(img.naturalHeight*k);
+  c.getContext("2d").drawImage(img,0,0,c.width,c.height); URL.revokeObjectURL(url);
+  return c.toDataURL("image/jpeg",0.85).split(",")[1];
+}
+const toCard=s=>RANKS.indexOf(s[0])*4+"shdc".indexOf(s[1]);
+async function rvFromPhoto(file){
+  const msg=$("rvPhotoMsg"), cfg=photoCfg();
+  if(!cfg.url||!cfg.code){ msg.innerHTML='<p class="err">Le serveur photo n\'est pas encore réglé : ouvre « ⚙️ Réglages de la photo » juste en dessous.</p>'; $("rvPhotoSet").open=true; return; }
+  msg.innerHTML='<p class="help">📸 Analyse de la photo… (quelques secondes)</p>';
+  try{
+    const image=await photoToBase64(file);
+    const r=await fetch(cfg.url,{method:"POST",headers:{"Content-Type":"application/json","X-App-Code":cfg.code},body:JSON.stringify({image,type:"image/jpeg"})});
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok){
+      const m={code:"Le code d'accès n'est pas le bon (vérifie-le dans les réglages de la photo).",cle:"La clé Anthropic du serveur ne marche pas.",limite:"Trop de photos d'un coup : réessaie dans une minute.",refus:"Cette photo n'a pas pu être analysée."}[d.erreur]||("Erreur : "+(d.erreur||r.status));
+      msg.innerHTML=`<p class="err">${esc(m)}</p>`; return;
+    }
+    const hero=d.hero.map(toCard), bd=d.board.map(toCard), vil=d.villain.map(toCard);
+    if(hero.length===2) rv.hero=hero;
+    if(bd.length){ rv.board=[-1,-1,-1,-1,-1]; bd.forEach((c,i)=>rv.board[i]=c); }
+    rv.opp=vil.length===2?vil:[-1,-1];
+    saveRv(); renderRv();
+    msg.innerHTML=`<div class="rvi ${hero.length===2?"rv-good":"rv-ok"}"><b>${hero.length===2?"✅ Cartes reconnues":"⚠️ Reconnaissance incomplète"}</b><br>
+      Toi : ${hero.map(miniCard).join("")||"—"} · Tableau : ${bd.map(miniCard).join("")||"—"}${vil.length?` · Adversaire : ${vil.map(miniCard).join("")}`:""}
+      ${d.note?`<br><span class="help">${esc(d.note)}</span>`:""}
+      <br><span class="help">${hero.length===2?"":"Tes 2 cartes n'ont pas été trouvées : ajoute-les à la main. "}Vérifie bien : si une carte est fausse, touche-la pour la changer. Ajoute ensuite les mises.</span></div>`;
+  }catch(e){ msg.innerHTML='<p class="err">Impossible de joindre le serveur photo. Vérifie ta connexion internet et l\'adresse dans les réglages.</p>'; }
+}
+
 function renderRvList(){
   $("rvList").innerHTML=rvList.length?`<table>${rvList.map(x=>{
     const v=villains.find(p=>String(p.id)===String(x.data.villain));
@@ -1661,9 +1710,13 @@ function calcIcm(){
   store.set("pgto_icmpay",$("icmPay").value);
   const st=icmPlayers.map(p=>Math.max(0,+p.s||0)), tot=st.reduce((a,b)=>a+b,0), pool=pay.reduce((a,b)=>a+b,0);
   if(!tot||!pool){ $("icmOut").innerHTML='<p class="help">Entre les tapis et les prix.</p>'; return; }
-  const eq=icm(st,pay);
-  $("icmOut").innerHTML=`<table><tr><th>Joueur</th><th class="r">Jetons</th><th class="r">Part des jetons</th><th class="r">Valeur ICM</th><th class="r">Part des prix</th></tr>
-    ${icmPlayers.map((p,i)=>`<tr><td>${esc(p.n)}</td><td class="r">${st[i].toLocaleString("fr-FR")}</td><td class="r">${pc(st[i]/tot)}</td><td class="r"><b>${fr(eq[i],2)}</b></td><td class="r">${pc(eq[i]/pool)}</td></tr>`).join("")}</table>`;
+  const eq=icm(st,pay), bb=num("icmBB"), sb=num("icmSB"), an=num("icmAnte");
+  store.set("pgto_icmblinds",{sb,bb,an});
+  const inBB=v=>bb?fr(v/bb,1)+" bb":"—";
+  const orbit=sb+bb+an*icmPlayers.length; // coût d'un tour de table
+  $("icmOut").innerHTML=`<table><tr><th>Joueur</th><th class="r">Jetons</th><th class="r">En grosses blindes</th><th class="r">Part des jetons</th><th class="r">Valeur ICM</th><th class="r">Part des prix</th></tr>
+    ${icmPlayers.map((p,i)=>`<tr><td>${esc(p.n)}</td><td class="r">${st[i].toLocaleString("fr-FR")}</td><td class="r"><b>${inBB(st[i])}</b></td><td class="r">${pc(st[i]/tot)}</td><td class="r"><b>${fr(eq[i],2)}</b></td><td class="r">${pc(eq[i]/pool)}</td></tr>`).join("")}</table>
+    ${bb?`<p class="help">Un tour de table (blindes${an?" + antes":""}) coûte ${orbit.toLocaleString("fr-FR")} jetons, soit ${fr(orbit/bb,1)} bb. ${st.some(s=>s/bb<15)?"⚡ Un ou plusieurs joueurs ont moins de 15 bb : c'est le moment du « tapis ou fold » (onglet Tournoi).":""}</p>`:""}`;
   calcIcmCall(st,pay,pool);
 }
 function calcIcmCall(st,pay,pool){
@@ -1674,14 +1727,16 @@ function calcIcmCall(st,pay,pool){
   if(!st){ out.innerHTML=""; return; }
   const me=+$("icMe").value, him=+$("icHim").value;
   if(me===him){ out.innerHTML='<p class="err">Choisis deux joueurs différents.</p>'; return; }
-  const D=num("icDead"), e=Math.min(100,num("icEq"))/100, x=Math.min(st[me],st[him]);
+  const D=num("icDead"), e=Math.min(100,num("icEq"))/100, x=Math.min(st[me],st[him]), bb=num("icmBB");
+  $("icDeadBB").textContent=bb&&D?`= ${fr(D/bb,1)} grosses blindes`:"";
   if(!x||!pool){ out.innerHTML='<p class="help">Entre les tapis et les prix plus haut.</p>'; return; }
+  const stakeTxt=`<p class="help">En jeu : ${x.toLocaleString("fr-FR")} jetons${bb?` (${fr(x/bb,1)} grosses blindes)`:""}.</p>`;
   const W=st.slice(); W[me]+=x+D; W[him]-=x;      // tu paies et tu gagnes
   const L=st.slice(); L[me]-=x; L[him]+=x+D;      // tu paies et tu perds
   const F=st.slice(); F[him]+=D;                  // tu te couches
   const ew=icm(W,pay)[me], el=icm(L,pay)[me], ef=icm(F,pay)[me];
   const need=ew>el?(ef-el)/(ew-el):1, chipNeed=x/(2*x+D), evCall=e*ew+(1-e)*el, diff=evCall-ef;
-  out.innerHTML=`<div class="kpi">
+  out.innerHTML=stakeTxt+`<div class="kpi">
     <div><small>Chances nécessaires sans ICM</small><b>${pc(chipNeed)}</b><small>en comptant seulement les jetons</small></div>
     <div><small>Chances nécessaires avec l'ICM</small><b style="color:var(--acc2)">${pc(need)}</b><small>en comptant les vrais prix</small></div>
     <div><small>Payer au lieu de se coucher</small><b style="color:${diff>=0?"var(--acc)":"var(--bad)"}">${diff>=0?"+":""}${fr(diff,2)}</b><small>de gain moyen (en prix)</small></div></div>
@@ -1985,6 +2040,9 @@ function init(){
   $("icmAdd").onclick=()=>{ icmPlayers.push({n:"Joueur "+(icmPlayers.length+1),s:1000}); renderIcmRows(); calcIcm(); };
   ["icMe","icHim"].forEach(id=>$(id).addEventListener("change",calcIcm));
   ["icDead","icEq"].forEach(id=>$(id).addEventListener("input",calcIcm));
+  { const b=store.get("pgto_icmblinds",null); if(b){ $("icmSB").value=b.sb; $("icmBB").value=b.bb; $("icmAnte").value=b.an; } }
+  ["icmSB","icmBB","icmAnte"].forEach(id=>$(id).addEventListener("input",calcIcm));
+  $("icDeadAuto").onclick=()=>{ $("icDead").value=num("icmSB")+num("icmBB")+num("icmAnte")*icmPlayers.length; calcIcm(); };
   $("icUseEq").onclick=()=>{ if(lastHeroEq!=null){ $("icEq").value=lastHeroEq.toFixed(1); calcIcm(); } else alert("Fais d'abord un calcul dans l'onglet « Chances »."); };
 
   // entraînement
@@ -2035,6 +2093,12 @@ function init(){
   $("rvRange").oninput=e=>{ rv.range=e.target.value; saveRv(); $("rvRinfo").innerHTML=rangeInfo(rv.range); };
   $("rvPreSit").onchange=e=>{ rv.preSit=e.target.value; saveRv(); };
   $("rvTable").onchange=e=>{ rv.table=+e.target.value; saveRv(); renderRv(); };
+  { const c=photoCfg(); $("rvPhUrl").value=c.url; $("rvPhCode").value=c.code; }
+  $("rvPhSave").onclick=()=>{ const url=$("rvPhUrl").value.trim(), code=$("rvPhCode").value.trim();
+    if(url&&!/^https:\/\//.test(url)){ $("rvPhInfo").textContent="L'adresse doit commencer par https://"; return; }
+    store.set("pgto_photo",{url,code}); $("rvPhInfo").textContent="Enregistré ✅"; };
+  $("rvPhotoBtn").onclick=()=>$("rvPhoto").click();
+  $("rvPhoto").onchange=e=>{ const f=e.target.files[0]; if(f) rvFromPhoto(f); e.target.value=""; };
   $("rvPreAct").onchange=e=>{ rv.preAct=e.target.value; saveRv(); renderRvStreets(); };
   $("rvVillain").onchange=e=>{ rv.villain=e.target.value; saveRv(); $("rvVStyle").style.display=rv.villain?"":"none"; };
   $("rvUseStyle").onclick=()=>{ const v=villains.find(x=>String(x.id)===String(rv.villain)); if(v){ rv.range=STYLE_RANGE[v.loose]; saveRv(); renderRv(); } };

@@ -101,6 +101,7 @@ td.r b{white-space:nowrap}
 /* grille des mains */
 .rg{display:grid;grid-template-columns:repeat(13,1fr);gap:2px;width:100%;max-width:560px;user-select:none;touch-action:none}
 .rg div{aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:clamp(8px,2.3vw,12px);border-radius:3px;background:#24382c;color:#cfe0d4;cursor:pointer;font-weight:600}
+.rg div small{font-size:.72em;font-weight:500;opacity:.85}
 .rg div.p{background:#3a3f63}.rg div.s{background:#2e4a3a}
 .rg div.on,.rg div.a-r{background:var(--acc);color:#04140a}
 .rg div.a-c{background:var(--acc2);color:#2a2000}
@@ -442,7 +443,7 @@ details ul{padding-left:20px;margin:6px 0}
    <div class="row"><select id="preScen" style="flex:1;max-width:100%"></select></div>
    <div class="legend" id="preLegend"></div>
    <div class="rg ro" id="preGrid"></div>
-   <p class="note">En haut à droite : mains assorties (s, même couleur). En bas à gauche : dépareillées (o). Diagonale : les paires. T = 10. Touche une case pour la voir en détail.</p>
+   <p class="note">📖 La <b>couleur</b> d'une case = ce qu'il faut faire. La <b>place</b> de la case = le type de main : en haut à droite, les mains <b>assorties</b> (« s », même couleur, ex. AKs = As et Roi de pique) ; en bas à gauche, les <b>dépareillées</b> (« o », deux couleurs différentes, ex. AKo) ; sur la diagonale, les <b>paires</b>. T = 10. Touche une case pour la voir en détail.</p>
    <p id="preCell" class="help"></p>
   </div>
   <div class="col">
@@ -463,6 +464,7 @@ details ul{padding-left:20px;margin:6px 0}
 <!-- ================= TAPIS OU FOLD ================= -->
 <section id="t-pf" class="tab">
  <p class="intro">Fin de tournoi, petit tapis : quand faire tapis, et quand payer un tapis. <button class="q" data-q="nash" aria-label="Explication">?</button> Depuis la petite blinde, c'est le <b>vrai équilibre GTO</b> (équilibre de Nash). Depuis les autres places, c'est une très bonne approximation.</p>
+ <p class="help">🎰 <b>Spin &amp; Go :</b> choisis « Bouton à 3 joueurs ». Comme seul le gagnant touche le prix, tes jetons valent exactement leur poids : ce calcul en jetons est le bon, pas besoin d'ICM.</p>
  <div class="card">
   <div class="f"><label>Ta place (personne n'a joué avant toi)</label><select id="pfSeat"></select></div>
   <div class="row">
@@ -476,7 +478,9 @@ details ul{padding-left:20px;margin:6px 0}
   <div class="card"><h2 id="pfTitleP">Petite blinde : faire tapis</h2><p class="help" id="pfInfoP"></p><div class="rg ro" id="pfGridP"></div></div>
   <div class="card"><h2 id="pfTitleC">Grosse blinde : payer le tapis</h2><p class="help" id="pfInfoC"></p><div class="rg ro" id="pfGridC"></div></div>
  </div>
+ <div class="card" id="pfCard3" style="margin-top:16px;display:none"><h2>Petite blinde : payer le tapis du bouton</h2><p class="help" id="pfInfo3"></p><div class="rg ro" id="pfGrid3"></div></div>
  <div class="card" style="margin-top:16px">
+  <p class="help">📖 La <b>couleur</b> d'une case = ce qu'il faut faire. La <b>place</b> de la case = le type de main : en haut à droite, les mains <b>assorties</b> (« s », même couleur, ex. AKs = As et Roi de pique) ; en bas à gauche, les mains <b>dépareillées</b> (« o », deux couleurs différentes, ex. AKo) ; sur la diagonale, les <b>paires</b>.</p>
   <p id="pfCell" class="help">Touche une case pour voir la main en détail. Une case à moitié colorée = on la joue une partie du temps.</p>
   <div class="row"><input type="text" id="pfHand" placeholder="ex : K9o"><button class="btn small" id="pfCheck">Vérifier ma main</button></div>
   <div id="pfAns"></div>
@@ -486,6 +490,7 @@ details ul{padding-left:20px;margin:6px 0}
 <!-- ================= ICM ================= -->
 <section id="t-icm" class="tab">
  <p class="intro">En tournoi, tes jetons ne valent pas leur poids en euros. L'ICM calcule ce que vaut vraiment ton tapis en argent, selon les prix à gagner.</p>
+ <p class="help">🎰 <b>Spin &amp; Go, Expresso :</b> en général, seul le 1er gagne. Alors l'ICM ne change rien : chaque jeton vaut son poids, et il suffit de prendre les coups où tu as les bonnes chances (onglet « Tapis ou fold », Bouton à 3 joueurs). Exception : les gros multiplicateurs où le 2e et le 3e sont aussi payés. Là, entre ces prix ci-dessous.</p>
  <div class="grid2">
   <div class="card">
    <h2>Les blindes</h2>
@@ -874,6 +879,19 @@ const FACING20={
   vs3b_lp:{s:"",c:"88+, ATs+, KQs, AJo+",name:"Tu as ouvert au bouton ou au CO, et on te fait tapis"},
   vs3b_ep:{s:"",c:"TT+, AQs+, AKo",name:"Tu as ouvert en début de table, et on te fait tapis"}
 };
+// table de 3 (Spin & Go) : face au bouton, on défend beaucoup plus large qu'à 6
+const FACING3={
+  100:{bb_btn:{raise:"99+, ATs+, KJs+, A5s-A2s, K9s, Q9s, J9s, 76s, 65s, AJo+, KQo",
+         call:"88-22, A9s-A6s, KTs-K2s, QJs-QTs, Q8s-Q2s, JTs, J8s-J4s, T9s-T5s, 98s-95s, 87s-84s, 75s-74s, 64s-63s, 54s-53s, 43s, ATo-A2o, KJo-K5o, QJo-Q7o, JTo-J7o, T9o-T7o, 98o-97o, 87o-86o, 76o, 65o"},
+       sb_btn:{raise:"77+, A7s+, A5s-A2s, K9s+, Q9s+, J9s+, T9s, 98s, 87s, ATo+, KJo+, QJo",
+         call:"66-22, A6s, K8s-K6s, Q8s, J8s, T8s, 97s, 76s, 65s, A9o-A7o, KTo, QTo, JTo"}},
+  40:{bb_btn:{raise:"88+, ATs+, KJs+, A5s-A4s, AJo+, KQo",
+         call:"77-22, A9s-A6s, A3s-A2s, KTs-K2s, QJs-Q4s, JTs-J6s, T9s-T6s, 98s-96s, 87s-85s, 76s-75s, 65s-64s, 54s, ATo-A2o, KJo-K7o, QJo-Q8o, JTo-J8o, T9o-T8o, 98o"},
+      sb_btn:{raise:"66+, A2s+, K9s+, QTs+, JTs, T9s, A9o+, KJo+",call:""}},
+  20:{bb_btn:{s:"55+, A2s+, K9s+, QTs+, A7o+, KTo+, QJo",
+         c:"44-22, K8s-K2s, Q9s-Q4s, J9s-J6s, T9s-T6s, 98s-96s, 87s-85s, 76s-75s, 65s-64s, 54s, A6o-A2o, K9o-K6o, QTo-Q8o, JTo-J8o, T9o-T8o, 98o"},
+      sb_btn:{s:"44+, A2s+, K8s+, Q9s+, J9s+, T9s, A7o+, KTo+, QJo",c:""}}
+};
 const DEPTHS=[[100,"100 grosses blindes (cash game, début de tournoi)"],[40,"Environ 40 grosses blindes (milieu de tournoi)"],[20,"Environ 20 grosses blindes (fin de tournoi)"]];
 let preDepth=[100,40,20].includes(store.get("pgto_depth",100))?store.get("pgto_depth",100):100;
 const sfx=d=>d&&d!==100?"@"+d:"";
@@ -892,7 +910,12 @@ for(const d of [100,40,20]){
       raise:g?new Set():parseRange(f.raise).set, call:parseRange(g?g.c:f.call).set, shove:g?parseRange(g.s).set:new Set()});
   }
 }
-const scenList = () => SCEN.filter(s=>(!s.table||s.table===tableSize)&&s.depth===preDepth);
+for(const d of [100,40,20]) for(const [id,g] of Object.entries(FACING3[d])){
+  const nm=id==="bb_btn"?"Grosse blinde contre une relance du bouton (3 joueurs)":"Petite blinde contre une relance du bouton (3 joueurs)";
+  SCEN.push({id:id+"3"+sfx(d), table:3, depth:d, open:false, name:nm, short:id==="bb_btn"?"BB vs BTN (3)":"SB vs BTN (3)",
+    raise:parseRange(g.raise||"").set, call:parseRange(g.call||g.c||"").set, shove:parseRange(g.s||"").set});
+}
+const scenList = () => SCEN.filter(s=>(tableSize===3?(s.table===3||(!s.table&&["bb_sb","vs3b_lp"].includes(s.id.split("@")[0]))):(!s.table||s.table===tableSize))&&s.depth===preDepth);
 const actionOf = (s,cls) => s.shove&&s.shove.has(cls)?"shove":s.raise.has(cls)?"raise":(s.call.has(cls)?"call":"fold");
 const ACT = {raise:["Relancer","pr"], call:["Suivre","pk"], fold:["Jeter","pf"], shove:["Tapis !","pt"]};
 const raiseLabel = s => s.open?"Relancer":s.r4?"Relancer (4-bet)":"Relancer (3-bet)";
@@ -959,7 +982,7 @@ function drawGrid(el,cellFn){
   for(let i=0;i<169;i++){
     const l=GRID[i], r=(i/13)|0, c=i%13, base=r===c?"p":(c>r?"s":"o");
     const x=cellFn?cellFn(l,i):{};
-    h+=`<div class="${base} ${x.cls||""}" style="${x.style||""}" data-l="${l}">${l.slice(0,2)}</div>`;
+    h+=`<div class="${base} ${x.cls||""}" style="${x.style||""}" data-l="${l}">${l.slice(0,2)}<small>${l[2]||""}</small></div>`;
   }
   el.innerHTML=h;
 }
@@ -1363,7 +1386,7 @@ function rvScenario(){
   const t9=+rv.table===9, d=+rv.depth||100;
   if(rv.preSit==="open") return rv.pos==="BB"?null:{s:scen(openPre(rv.table)+rv.pos,d)||scen("open_"+rv.pos,d),approx:false};
   if(rv.preSit==="3bet") return {s:scen(["CO","BTN","SB"].includes(rv.pos)?"vs3b_lp":"vs3b_ep",d),approx:false};
-  return scenFacing(rv.pos,rv.oppPos,d);
+  return scenFacing(rv.pos,rv.oppPos,d,rv.table);
 }
 function rvAnalyze(){
   const out=$("rvOut"), H=rv.hero, items=[];
@@ -1759,7 +1782,8 @@ function hhPositions(h){
   for(const [p,k] of h.posts){ if(k==="sb") pos[p]="SB"; if(k==="bb") pos[p]="BB"; }
   return pos;
 }
-function scenFacing(pos,opPos,d){
+function scenFacing(pos,opPos,d,t){
+  if(+t===3){ const id=(pos+"_"+opPos).toLowerCase()+"3", s3=SCEN.find(x=>x.id===id+sfx(d)); if(s3) return {s:s3,approx:false}; }
   let s=SCEN.find(x=>!x.open&&x.id===(pos+"_"+opPos).toLowerCase()+sfx(d));
   if(s) return {s,approx:false};
   const early=["UTG","UTG+1","UTG+2","LJ","HJ"].includes(opPos);
@@ -1837,7 +1861,7 @@ function hhInfo(h){
   if(dep&&n>=3&&heroFirst){
     let sc=null, act=heroFirst;
     if(I.spot==="open"&&I.pos!=="BB") sc={s:scen(openPre(tt)+I.pos,dep)||scen("open_"+I.pos,dep)};
-    else if(I.spot==="raised"&&I.opener>=0) sc=scenFacing(I.pos,pos[I.opener],dep);
+    else if(I.spot==="raised"&&I.opener>=0) sc=scenFacing(I.pos,pos[I.opener],dep,tt);
     if(I.f3Opp){ sc={s:scen(["CO","BTN","SB"].includes(I.pos)?"vs3b_lp":"vs3b_ep",dep)}; act=I.act3; }
     if(sc&&sc.s&&act!=="x"){
       // ta relance était-elle un tapis ?
@@ -2522,7 +2546,7 @@ function preFromSeats(){
   const hp=seatHero(), op=seatOpp(), sit=$("preSit").value, info=$("preAuto");
   let s=null, msg="";
   if(sit==="open"){ if(hp==="BB"){ msg="En grosse blinde, si personne n'a relancé, tu checkes gratuitement : il n'y a pas de tableau pour ce cas."; } else s=scen(openPre(tableSize)+hp,preDepth); }
-  else if(sit==="raised"){ if(!op) msg="Touche le siège de l'adversaire qui a relancé (il passe en rouge)."; else if(POSTFLOP_ORDER.indexOf(op)>=0&&preOrderBefore(op,hp)) { const r=scenFacing(hp,op,preDepth); s=r.s; if(r.approx) msg="Tableau le plus proche de ta situation."; } else msg="L'adversaire doit parler avant toi pour avoir relancé : choisis un siège à ta droite."; }
+  else if(sit==="raised"){ if(!op) msg="Touche le siège de l'adversaire qui a relancé (il passe en rouge)."; else if(POSTFLOP_ORDER.indexOf(op)>=0&&preOrderBefore(op,hp)) { const r=scenFacing(hp,op,preDepth,tableSize); s=r.s; if(r.approx) msg="Tableau le plus proche de ta situation."; } else msg="L'adversaire doit parler avant toi pour avoir relancé : choisis un siège à ta droite."; }
   else { s=scen(["CO","BTN","SB"].includes(hp)?"vs3b_lp":"vs3b_ep",preDepth); }
   info.textContent=s?`Tableau choisi automatiquement : « ${s.name} ». ${msg}`:msg;
   if(s){ const i=SCEN.indexOf(s); if(![...$("preScen").options].some(o=>+o.value===i)) $("preScen").insertAdjacentHTML("beforeend",`<option value="${i}">${s.name}</option>`); $("preScen").value=String(i); drawPre(); }
@@ -2689,21 +2713,46 @@ function solvePushSeat(S,a,k,n,T=80){
   const clean=x=>x>0.97?1:(x<0.03?0:x);
   return {push:Array.from(P,clean), call:Array.from(Cb,clean)};
 }
+// Spin & Go : le bouton fait tapis, puis la petite blinde et la grosse blinde décident (équilibre approché à 3 joueurs)
+function solveSpin(S,a,T=250){
+  const N=169, hu=solvePF(S,a);
+  const P=Float64Array.from(hu.push), Sc=Float64Array.from(hu.call), B1=Float64Array.from(hu.call), B2=new Float64Array(N).fill(0.1);
+  const bP=new Float64Array(N), bS=new Float64Array(N), bB1=new Float64Array(N), bB2=new Float64Array(N);
+  const vs=(h,st)=>{ let w=0,wt=0,e=0; for(let x=0;x<N;x++){ const m=WM[h*N+x]; wt+=m; const y=m*st[x]; w+=y; e+=y*EQM[h*N+x]; } return [wt?w/wt:0, w?e/w:0.5]; };
+  const three=(e1,e2)=>Math.min(1,4/3*e1*e2); // chances à 3 (approchées à partir des duels)
+  const pot2s=2*S+1+3*a, pot2b=2*S+0.5+3*a, pot3=3*S+3*a;
+  for(let t=1;t<=T;t++){
+    for(let h=0;h<N;h++){
+      const [pS,eS]=vs(h,Sc), [pB,eB]=vs(h,B1), [pO,eO]=vs(h,B2), [,eP]=vs(h,P);
+      bB1[h]=eP*pot2b-S-a>-1-a?1:0;                       // grosse blinde face au tapis du bouton
+      bB2[h]=three(eP,eS)*pot3-S-a>-1-a?1:0;              // grosse blinde quand la petite blinde a déjà payé
+      bS[h]=(1-pO)*(eP*pot2s-S-a)+pO*(three(eP,eO)*pot3-S-a)>-0.5-a?1:0; // petite blinde face au tapis du bouton
+      const ev=(1-pS)*(1-pB)*(1.5+2*a)+(1-pS)*pB*(eB*pot2b-S-a)+pS*(1-pO)*(eS*pot2s-S-a)+pS*pO*(three(eS,eO)*pot3-S-a);
+      bP[h]=ev>-a?1:0;                                      // bouton : tapis si mieux que se coucher
+    }
+    const f=1/(t+1);
+    for(let i=0;i<N;i++){ P[i]+=(bP[i]-P[i])*f; Sc[i]+=(bS[i]-Sc[i])*f; B1[i]+=(bB1[i]-B1[i])*f; B2[i]+=(bB2[i]-B2[i])*f; }
+  }
+  const clean=x=>x>0.97?1:(x<0.03?0:x);
+  return {push:Array.from(P,clean), call:Array.from(B1,clean), callSB:Array.from(Sc,clean), spin:true};
+}
 function runPF(){
   if(pfBusy) return;
   const S=Math.min(50,Math.max(1,+$("pfS").value||10)), a=Math.min(1,Math.max(0,+$("pfA").value||0));
-  const k=+$("pfSeat").value||1, place=PF_SEATS.find(x=>x[0]===k)[1], n=Math.max(tableSize,k+1);
+  const v=$("pfSeat").value, spin=v==="spin", k=spin?2:(+v||1), place=spin?"Bouton (Spin & Go)":v==="spinsb"?"Petite blinde (Spin & Go)":PF_SEATS.find(x=>x[0]===k)[1], n=spin||v==="spinsb"?3:Math.max(tableSize,k+1);
   if(!WM) buildWM();
   const go=()=>{
-    pfRes=solvePushSeat(S,a,k,n); pfRes.S=S; pfRes.a=a; pfRes.k=k; pfRes.place=place;
+    pfRes=spin?solveSpin(S,a):solvePushSeat(S,a,k,n); pfRes.S=S; pfRes.a=a; pfRes.k=k; pfRes.place=place;
     drawGrid($("pfGridP"),(l,i)=>({style:freqStyle(pfRes.push[i],"var(--acc)")}));
     drawGrid($("pfGridC"),(l,i)=>({style:freqStyle(pfRes.call[i],"var(--acc2)")}));
     $("pfTitleP").textContent=`${place} : faire tapis`;
-    $("pfTitleC").textContent=k===1?"Grosse blinde : payer le tapis":`Grosse blinde : payer un tapis du ${place.split(/[ ,]/)[0]}`;
+    $("pfCard3").style.display=spin?"":"none";
+    if(spin){ drawGrid($("pfGrid3"),(l,i)=>({style:freqStyle(pfRes.callSB[i],"var(--acc2)")})); $("pfInfo3").textContent=`Paie avec ${pc(freqPct(pfRes.callSB))} des mains. Elle doit être plus prudente que la grosse blinde : la grosse blinde parle encore après elle.`; }
+    $("pfTitleC").textContent=spin?"Grosse blinde : payer le tapis du bouton (la petite blinde s'est couchée)":k===1?"Grosse blinde : payer le tapis":`Grosse blinde : payer un tapis du ${place.split(/[ ,]/)[0]}`;
     $("pfInfoP").textContent=`Tapis avec ${pc(freqPct(pfRes.push))} des mains, le reste se couche${k>1?` (${k} joueurs derrière toi)`:""}.`;
     $("pfInfoC").textContent=`Paie avec ${pc(freqPct(pfRes.call))} des mains face à ce tapis.`;
-    $("pfStatus").textContent=`${k===1?"Équilibre exact":"Approximation"} pour ${fr(S,1)} grosses blindes${a?` avec une ante de ${fr(a,2)} bb`:""}, depuis : ${place}.`;
-    store.set("pgto_pf",{S,a,k});
+    $("pfStatus").textContent=`${spin?"Équilibre à 3 joueurs (approximation)":k===1?"Équilibre exact":"Approximation"} pour ${fr(S,1)} grosses blindes${a?` avec une ante de ${fr(a,2)} bb`:""}, depuis : ${place}.`;
+    store.set("pgto_pf",{S,a,k:v});
     pfBusy=false; $("pfRun").disabled=false;
   };
   pfBusy=true; $("pfRun").disabled=true;
@@ -2713,6 +2762,7 @@ function runPF(){
 function pfHandTxt(cls){
   if(!pfRes) return "Clique d'abord sur « Calculer l'équilibre ».";
   const i=GIDX[cls], f=x=>x>=1?"toujours":x<=0?"jamais":`${fr(x*100,0)} % du temps`;
+  if(pfRes.spin) return `<b>${cls}</b> à ${fr(pfRes.S,1)} bb, à 3 joueurs : le bouton fait tapis <b>${f(pfRes.push[i])}</b> · la petite blinde paie <b>${f(pfRes.callSB[i])}</b> · la grosse blinde paie <b>${f(pfRes.call[i])}</b>.`;
   return `<b>${cls}</b> à ${fr(pfRes.S,1)} bb : depuis ${pfRes.place||"Petite blinde"}, tapis <b>${f(pfRes.push[i])}</b> · la grosse blinde paie <b>${f(pfRes.call[i])}</b>.`;
 }
 
@@ -2762,13 +2812,14 @@ function calcIcm(){
   store.set("pgto_icmpay",$("icmPay").value);
   const st=icmPlayers.map(p=>Math.max(0,+p.s||0)), tot=st.reduce((a,b)=>a+b,0), pool=pay.reduce((a,b)=>a+b,0);
   if(!tot||!pool){ $("icmOut").innerHTML='<p class="help">Entre les tapis et les prix.</p>'; return; }
+  const onePrize=pay.filter(x=>x>0).length===1;
   const eq=icm(st,pay), bb=num("icmBB"), sb=num("icmSB"), an=num("icmAnte");
   store.set("pgto_icmblinds",{sb,bb,an});
   const inBB=v=>bb?fr(v/bb,1)+" bb":"—";
   const orbit=sb+bb+an*icmPlayers.length; // coût d'un tour de table
   $("icmOut").innerHTML=`<table><tr><th>Joueur</th><th class="r">Jetons</th><th class="r">En grosses blindes</th><th class="r">Part des jetons</th><th class="r">Valeur ICM</th><th class="r">Part des prix</th></tr>
     ${icmPlayers.map((p,i)=>`<tr><td>${esc(p.n)}</td><td class="r">${st[i].toLocaleString("fr-FR")}</td><td class="r"><b>${inBB(st[i])}</b></td><td class="r">${pc(st[i]/tot)}</td><td class="r"><b>${fr(eq[i],2)}</b></td><td class="r">${pc(eq[i]/pool)}</td></tr>`).join("")}</table>
-    ${bb?`<p class="help">Un tour de table (blindes${an?" + antes":""}) coûte ${orbit.toLocaleString("fr-FR")} jetons, soit ${fr(orbit/bb,1)} bb. ${st.some(s=>s/bb<15)?"⚡ Un ou plusieurs joueurs ont moins de 15 bb : c'est le moment du « tapis ou fold » (onglet Tournoi).":""}</p>`:""}`;
+    ${onePrize?'<p class="note">🎰 Un seul prix (comme un Spin &amp; Go) : la valeur de chaque tapis est exactement sa part des jetons. L\'ICM ne change rien : joue simplement les coups rentables en jetons.</p>':""}${bb?`<p class="help">Un tour de table (blindes${an?" + antes":""}) coûte ${orbit.toLocaleString("fr-FR")} jetons, soit ${fr(orbit/bb,1)} bb. ${st.some(s=>s/bb<15)?"⚡ Un ou plusieurs joueurs ont moins de 15 bb : c'est le moment du « tapis ou fold » (onglet Tournoi).":""}</p>`:""}`;
   calcIcmCall(st,pay,pool);
 }
 function calcIcmCall(st,pay,pool){
@@ -3048,7 +3099,7 @@ function init(){
     if(t.dataset.sdel!==undefined && confirm("Supprimer cette partie ?")){ sessions=sessions.filter(s=>s.id!==+t.dataset.sdel); renderSessions(); }
     const cell=t.closest("#preGrid [data-l]");
     if(cell){ const s=SCEN[+$("preScen").value]; $("preCell").innerHTML=`${cell.dataset.l} : ${actPill(actionOf(s,cell.dataset.l),s)}`; }
-    const pcell=t.closest("#pfGridP [data-l], #pfGridC [data-l]");
+    const pcell=t.closest("#pfGridP [data-l], #pfGridC [data-l], #pfGrid3 [data-l]");
     if(pcell) $("pfCell").innerHTML=pfHandTxt(pcell.dataset.l);
     const hcell=t.closest("#hmGrid [data-l]");
     if(hcell&&hmData){ const l=hcell.dataset.l, r=hmData[l];
@@ -3130,7 +3181,8 @@ function init(){
   $("preHand").onkeydown=e=>{ if(e.key==="Enter") $("preCheck").click(); };
 
   // tapis ou fold
-  $("pfSeat").innerHTML=PF_SEATS.map(([k,name])=>`<option value="${k}">${name}${k>1?` (${k} joueurs derrière)`:" (face à la grosse blinde)"}</option>`).join("");
+  $("pfSeat").innerHTML='<optgroup label="Spin &amp; Go (3 joueurs)"><option value="spin">Bouton à 3 joueurs (Spin &amp; Go)</option><option value="spinsb">Petite blinde à 3 joueurs (le bouton s\'est couché)</option></optgroup><optgroup label="Tournoi classique">'+PF_SEATS.map(([k,name])=>`<option value="${k}">${name}${k>1?` (${k} joueurs derrière)`:" (face à la grosse blinde)"}</option>`).join("")+'</optgroup>';
+  $("pfSeat").value=tableSize===3?"spin":"1";
   const pfs=store.get("pgto_pf",null); if(pfs){ $("pfS").value=pfs.S; $("pfA").value=pfs.a; if(pfs.k) $("pfSeat").value=String(pfs.k); }
   $("pfSeat").onchange=()=>{ if(EQM) runPF(); };
   $("pfRun").onclick=runPF;
